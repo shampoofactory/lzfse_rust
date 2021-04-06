@@ -2,8 +2,16 @@
 name = "lzfse_rust"
 version = "0.1.0"
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
-edition = "2018"
+description = """
+A pure Rust LZFSE library.
+"""
 license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/lzfse_rust"
+homepage = "https://github.com/shampoofactory/lzfse_rust"
+repository = "https://github.com/shampoofactory/lzfse_rust"
+readme = "README.md"
+keywords = ["lzfse", "compress", "compression", "decompress", "decompression"]
+edition = "2018"
 exclude = ["data/*"]
 
 [workspace]

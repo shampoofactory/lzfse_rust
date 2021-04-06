@@ -1,9 +1,16 @@
 [package]
+publish = false
 name = "lzfse-rust-bench"
 version = "0.1.0"
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
-edition = "2018"
+description = """
+Criterion powered benchmarks for lzfse_rust crate.
+"""
 license = "MIT OR Apache-2.0"
+homepage = "https://github.com/shampoofactory/lzfse_rust"
+repository = "https://github.com/shampoofactory/lzfse_rust"
+readme = "README.md"
+edition = "2018"
 
 [lib]
 bench = false
@@ -11,7 +18,7 @@ bench = false
 [[bench]]
 name = "lzfse_rust"
 harness = false
-path = "src/lib.rs"
+path = "src/bench.rs"
 
 [features]
 lzfse_ref = ["lzfse_sys"]

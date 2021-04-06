@@ -1,9 +1,16 @@
 [package]
+publish = false
 name = "lzfse_sys"
 version = "0.1.0"
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
-edition = "2018"
+description = """
+Rust lzfse reference bindings.
+"""
 license = "MIT OR Apache-2.0"
+homepage = "https://github.com/shampoofactory/lzfse_rust"
+repository = "https://github.com/shampoofactory/lzfse_rust"
+readme = "README.md"
+edition = "2018"
 links = "lzfse"
 
 [dependencies]
