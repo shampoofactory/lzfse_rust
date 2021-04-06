@@ -1,0 +1,15 @@
+[package]
+name = "lzfoo"
+version = "0.1.0"
+authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "lzfoo"
+# path = "main.rs"
+
+[dependencies]
+lzfse_rust = { path = ".." }
+clap = "2.33.3"
+
+# TODO complete all with licenses etc.

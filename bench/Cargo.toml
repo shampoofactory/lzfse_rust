@@ -1,0 +1,22 @@
+[package]
+name = "lzfse-rust-bench"
+version = "0.1.0"
+authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "lzfse_rust"
+harness = false
+path = "src/lib.rs"
+
+[features]
+lzfse_ref = ["lzfse_sys"]
+
+[dependencies]
+criterion = "0.3.4"
+lzfse_rust = { path = ".." }
+lzfse_sys = { path = "../lzfse_sys", optional = true }

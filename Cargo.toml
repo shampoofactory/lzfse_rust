@@ -1,0 +1,20 @@
+[package]
+name = "lzfse_rust"
+version = "0.1.0"
+authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+exclude = ["data/*"]
+
+[workspace]
+exclude = ["lzfse_sys"]
+members = ["lzfoo", "bench", "test", "test_kit"]
+
+[lib]
+bench = false
+
+[profile.test]
+opt-level = 3
+
+[dev-dependencies]
+test_kit = { path = "test_kit" }

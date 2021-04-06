@@ -1,0 +1,20 @@
+[package]
+name = "test"
+publish = false
+version = "0.1.0"
+authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[features]
+lzfse_ref = ["lzfse_sys"]
+large_data = []
+huge_data = []
+
+[dependencies]
+lzfse_sys = { path = "../lzfse_sys", optional = true }
+
+[dev-dependencies]
+sha2 = "0.9.3"
+lzfse_rust = { path = ".." }
+test_kit = { path = "../test_kit" }
