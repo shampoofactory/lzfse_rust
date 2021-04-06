@@ -2,3 +2,4 @@
 /data/large/
 Cargo.lock
 **/*.rs.bk
+/.vscode/
