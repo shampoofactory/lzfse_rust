@@ -44,7 +44,6 @@ impl FseBackend {
         self.encoder.init(&self.weights);
         let block = self.buffer.store(dst, &self.encoder)?;
         let bytes = dst.patch_into(mark, V2_HEADER_SIZE as usize);
-        println!("{:?}", block);
         block.store_v2(bytes, n_weight_payload_bytes);
         self.buffer.reset();
         if flush {
