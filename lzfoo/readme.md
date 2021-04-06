@@ -16,12 +16,11 @@ FLAGS:
     -V, --version    Prints version information
 
 SUBCOMMANDS:
-    decode    Decode (decompress)
-    encode    Encode (compress)
-    help      Prints this message or the help of the given subcommand(s)
+    -decode    Decode (decompress)
+    -encode    Encode (compress)
+    help       Prints this message or the help of the given subcommand(s)
 
 See 'lzfoo help <command>' for more information on a specific command.
-Note that '-encode', '-decode' command aliases are also accepted.
 ```
 
 ## Installation
@@ -32,23 +31,23 @@ TODO
 ## Basic usage
 
 ```
-$ lzfoo help encode
-lzfoo-encode 
+$ lzfoo help -encode
+lzfoo--encode 
 Encode (compress)
 
 USAGE:
-    lzfoo encode [OPTIONS]
+    lzfoo -encode [FLAGS] [OPTIONS]
 
 FLAGS:
     -h, --help       Prints help information
+    -v               Sets the level of verbosity
     -V, --version    Prints version information
 
 OPTIONS:
     -i <FILE>        input
     -o <FILE>        output
 
-If no input/ output specified reads/ writes from standard input/ output.
-Note that the '-encode' command alias is also accepted.
+If no input/ output specified reads/ writes from standard input/ output
 ```
 
 Compress `a.txt` to `a.txt.lzfse`:
@@ -65,15 +64,16 @@ $ echo "semper fidelis" | lzfoo -encode > a.txt.lzfse
 ```
 
 ```
-$ lzfoo help decode
-lzfoo-decode 
+$ lzfoo help -decode
+lzfoo--decode 
 Decode (decompress)
 
 USAGE:
-    lzfoo decode [OPTIONS]
+    lzfoo -decode [FLAGS] [OPTIONS]
 
 FLAGS:
     -h, --help       Prints help information
+    -v               Sets the level of verbosity
     -V, --version    Prints version information
 
 OPTIONS:
@@ -81,7 +81,6 @@ OPTIONS:
     -o <FILE>        output
 
 If no input/ output specified reads/ writes from standard input/ output.
-Note that the '-decode' command alias is also accepted.
 ```
 
 Decompress `a.txt.lzfse` to `a.txt`:
