@@ -12,7 +12,7 @@ repository = "https://github.com/shampoofactory/lzfse_rust"
 readme = "README.md"
 keywords = ["lzfse", "compress", "compression", "decompress", "decompression"]
 edition = "2018"
-exclude = ["data/*"]
+exclude = ["data/*", "scripts/*"]
 
 [workspace]
 exclude = ["lzfse_sys"]
