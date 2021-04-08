@@ -160,7 +160,7 @@ unsafe fn l<I: CopyShort, O: ShortWriter>(
     debug_assert!(op_len <= 3);
     assert!(dst.is_allocated(SLACK as usize + WIDE));
     let ptr = dst.short_ptr();
-    ptr.cast::<u32>().write_unaligned(opu);
+    ptr.cast::<u32>().write_unaligned(opu.to_le());
     let ptr = ptr.add(op_len as usize);
     src.read_short_raw::<CopyTypeIndex>(ptr, literal_len as usize);
     dst.short_set(op_len + literal_len);
@@ -178,7 +178,7 @@ unsafe fn m<O: ShortWriter>(dst: &mut O, opu: u32, op_len: u32) {
     debug_assert!(op_len <= 3);
     assert!(dst.is_allocated(SLACK as usize + WIDE));
     let ptr = dst.short_ptr();
-    ptr.cast::<u32>().write_unaligned(opu);
+    ptr.cast::<u32>().write_unaligned(opu.to_le());
     dst.short_set(op_len);
 }
 
@@ -234,8 +234,8 @@ unsafe fn lmd<I: ShortBuffer, O: ShortWriter>(
     assert!(dst.is_allocated(SLACK as usize + WIDE));
     let literal_bytes = src.peek_u32();
     let ptr = dst.short_ptr();
-    ptr.cast::<u32>().write_unaligned(opu);
+    ptr.cast::<u32>().write_unaligned(opu.to_le());
     let ptr = ptr.add(op_len as usize);
-    ptr.cast::<u32>().write_unaligned(literal_bytes);
+    ptr.cast::<u32>().write_unaligned(literal_bytes.to_le());
     dst.short_set(op_len + literal_len);
 }
