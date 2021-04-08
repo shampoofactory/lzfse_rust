@@ -33,7 +33,7 @@ pub unsafe fn fast_match_inc_unchecked(
     while len + mem::size_of::<usize>() <= max {
         let u_0 = ptrs.0.add(len).cast::<usize>().read_unaligned();
         let u_1 = ptrs.1.add(len).cast::<usize>().read_unaligned();
-        let x = (u_0 ^ u_1).to_le();
+        let x = u_0 ^ u_1;
         if x != 0 {
             return len + ops::nclz_bytes(x) as usize;
         }
@@ -91,8 +91,8 @@ pub unsafe fn fast_match_dec_unchecked(
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    #[ignore = "expensive"]
     fn match_inc_1() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
@@ -110,7 +110,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "expensive"]
     fn match_inc_2() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
@@ -128,7 +127,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "expensive"]
     fn match_dec_1() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
