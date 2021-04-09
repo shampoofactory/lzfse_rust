@@ -29,6 +29,18 @@ macro_rules! test_pattern {
                 }
                 Ok(())
             }
+
+            #[test]
+            #[ignore = "expensive"]
+            fn encode_decode_2() -> io::Result<()> {
+                let mut vec = Vec::with_capacity(0x0010_0000);
+                vec.resize(0x0007_FE00, 0);
+                while vec.len() != 0x0008_0200 {
+                    ops::check_encode_decode(&vec, $encoder)?;
+                    vec.push(0);
+                }
+                Ok(())
+            }
         }
     };
 }
