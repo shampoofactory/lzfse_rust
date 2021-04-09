@@ -64,19 +64,11 @@ $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --features lzfse_ref
 Test huge virtual synthetic data files using concurrent `lzfse_rust` process invocations.
 Although we are testing 64GB+ data files the actual memory requirements should not exceed 2MB.
 
-Build `lzfse_rust` in debug mode for it's tighter internal validation.
-
-```
-$ cd lzfse_rust
-$ cargo build
-```
-
-We can then pass the `huge_data` feature flag to enable large data tests.
-
 ```
 $ cd test
 $ cargo test huge --features huge_data
 ```
+
 ```
 $ cd test
 $ cargo test --features huge_data
