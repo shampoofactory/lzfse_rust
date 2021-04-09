@@ -39,6 +39,7 @@ pub unsafe fn write_match_16(src: *const u8, dst: *mut u8, dst_end: *mut u8) {
 /// * `dst` is valid for `len + WIDE` byte writes.
 /// * `8 <= distance`
 /// * `distance <= 16`
+// TODO benchmark, may be inefficient on 32 bit systems.
 #[inline(always)]
 pub unsafe fn write_match_8(src: *const u8, dst: *mut u8, dst_end: *mut u8, distance: usize) {
     delta_16(expand_r16(src), dst, dst_end, distance)
@@ -57,6 +58,8 @@ pub unsafe fn write_match_8(src: *const u8, dst: *mut u8, dst_end: *mut u8, dist
 /// * `distance <= 8`
 #[inline(always)]
 pub unsafe fn write_match_x(src: *const u8, dst: *mut u8, dst_end: *mut u8, distance: usize) {
+    debug_assert!(0 < distance);
+    debug_assert!(distance <= 8);
     match distance {
         8 => store_8(expand_r8(src), dst, dst_end),
         7 => delta_8(expand_r8(src), dst, dst_end, 7),
@@ -85,7 +88,7 @@ pub unsafe fn write_match_x(src: *const u8, dst: *mut u8, dst_end: *mut u8, dist
 #[allow(dead_code)]
 #[inline(always)]
 pub unsafe fn write_match_alt(src: *const u8, dst: *mut u8, dst_end: *mut u8, distance: usize) {
-    debug_assert!(1 < distance);
+    debug_assert!(0 < distance);
     debug_assert!(distance <= 16);
     let delta = if distance < 8 {
         let u = *src.add(0);
@@ -121,8 +124,16 @@ unsafe fn expand_r2(src: *const u8) -> [u8; 8] {
 }
 
 #[inline(always)]
+#[cfg(target_endian = "little")]
 unsafe fn expand_r3(src: *const u8) -> [u8; 8] {
     ((src.cast::<u32>().read_unaligned() & 0x00FF_FFFF) as u64 * 0x0000_0000_0100_0001)
+        .to_ne_bytes()
+}
+
+#[inline(always)]
+#[cfg(target_endian = "big")]
+unsafe fn expand_r3(src: *const u8) -> [u8; 8] {
+    ((src.cast::<u32>().read_unaligned() & 0xFFFF_FF00) as u64 * 0x0000_0001_0000_0100)
         .to_ne_bytes()
 }
 
