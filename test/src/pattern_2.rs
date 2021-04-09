@@ -3,9 +3,10 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
-            use test_kit::Seq;
-
+            use crate::monkey::Monkey;
             use crate::ops;
+
+            use test_kit::Seq;
 
             use std::io;
 
@@ -14,11 +15,12 @@ macro_rules! test_pattern {
             fn encode_decode_0() -> io::Result<()> {
                 let mut vec = Vec::with_capacity(0x0008_0200);
                 Seq::default().take(0x0400).for_each(|u| vec.push(u));
+                let mut monkey = Monkey::default();
                 for u in (1..0x0400).rev() {
                     let i = vec.len();
                     vec.resize(i + u, 0);
                     vec.copy_within(i - u..i, i);
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                 }
                 Ok(())
             }
@@ -27,6 +29,6 @@ macro_rules! test_pattern {
 }
 
 test_pattern!(encode, ops::encode);
-test_pattern!(encode_ring, ops::encode_ring);
-test_pattern!(encode_writer, ops::encode_ring_writer_bytes);
-test_pattern!(encode_ring_writer, ops::encode_ring_writer);
+test_pattern!(encode_bytes, ops::encode_bytes);
+test_pattern!(encode_writer, ops::encode_writer);
+test_pattern!(encode_writer_bytes, ops::encode_writer_bytes);

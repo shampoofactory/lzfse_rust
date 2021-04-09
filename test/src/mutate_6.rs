@@ -14,16 +14,20 @@ const RAW_HASH: &[u8] = include_bytes!("../../data/mutate/raw.hash");
 macro_rules! test_mutate {
     ($name:ident, $data:ident, $hash:ident) => {
         mod $name {
+            use crate::monkey::Monkey;
             use crate::ops;
+
+            use lzfse_rust::LzfseRingDecoder;
 
             use std::io;
 
             pub fn check_mutate<F>(data: &[u8], hash: &[u8], decode: F) -> io::Result<()>
             where
-                F: Fn(&[u8], &mut Vec<u8>) -> io::Result<()>,
+                F: Fn(&mut LzfseRingDecoder, &[u8], &mut Vec<u8>) -> io::Result<()>,
             {
-                for index in 0..data.len() - 1 {
-                    assert!(ops::check_decode_hash(&data[..index], hash, &decode).is_err());
+                let mut monkey = Monkey::default();
+                for index in (0..data.len() - 1).rev() {
+                    assert!(monkey.decode_hash(&data[..index], hash, &decode).is_err());
                 }
                 Ok(())
             }
@@ -36,20 +40,20 @@ macro_rules! test_mutate {
 
             #[test]
             #[ignore = "expensive"]
+            fn mutate_bytes() -> io::Result<()> {
+                check_mutate(super::$data, super::$hash, ops::decode_bytes)
+            }
+
+            #[test]
+            #[ignore = "expensive"]
             fn mutate_reader() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring_reader_bytes)
+                check_mutate(super::$data, super::$hash, ops::decode_reader)
             }
 
             #[test]
             #[ignore = "expensive"]
-            fn mutate_ring() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring)
-            }
-
-            #[test]
-            #[ignore = "expensive"]
-            fn mutate_ring_reader() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring_reader)
+            fn mutate_reader_bytes() -> io::Result<()> {
+                check_mutate(super::$data, super::$hash, ops::decode_reader_bytes)
             }
         }
     };

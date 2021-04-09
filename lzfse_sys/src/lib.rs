@@ -2,21 +2,6 @@ use libc::{c_void, size_t};
 
 use std::ptr;
 
-pub fn encode_all(src: &[u8], dst: &mut Vec<u8>) {
-    dst.resize(src.len(), 0);
-    loop {
-        let n = encode(src, dst.as_mut_slice());
-        if n == 0 {
-            dst.resize(dst.len() * 2, 0);
-            continue;
-        } else {
-            debug_assert!(n <= dst.len());
-            dst.truncate(n);
-            break;
-        }
-    }
-}
-
 pub fn encode(src: &[u8], dst: &mut [u8]) -> usize {
     unsafe {
         lzfse_encode_buffer(
@@ -26,21 +11,6 @@ pub fn encode(src: &[u8], dst: &mut [u8]) -> usize {
             src.len() as size_t,
             ptr::null_mut::<c_void>(),
         )
-    }
-}
-
-pub fn decode_all(src: &[u8], dst: &mut Vec<u8>) {
-    dst.resize(src.len() * 2, 0);
-    loop {
-        let n = decode(src, dst.as_mut_slice());
-        if n == dst.len() {
-            dst.resize(dst.len() * 2, 0);
-            continue;
-        } else {
-            debug_assert!(n < dst.len());
-            dst.truncate(n);
-            break;
-        }
     }
 }
 

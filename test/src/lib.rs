@@ -9,6 +9,8 @@ mod huge;
 #[cfg(test)]
 mod len;
 #[cfg(test)]
+mod monkey;
+#[cfg(test)]
 mod mutate_0;
 #[cfg(test)]
 mod mutate_1;

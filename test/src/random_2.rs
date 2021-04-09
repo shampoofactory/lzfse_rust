@@ -3,6 +3,7 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
+            use crate::monkey::Monkey;
             use crate::ops;
 
             use test_kit::{Rng, Seq};
@@ -12,10 +13,11 @@ macro_rules! test_pattern {
             #[test]
             #[ignore = "expensive"]
             fn encode_decode_0() -> io::Result<()> {
+                let mut monkey = Monkey::default();
                 for seed in 0..0x0080 {
                     let vec = Iterator::take(Seq::masked(Rng::new(seed), 0x03030303), 0x0010_0000)
                         .collect::<Vec<_>>();
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                 }
                 Ok(())
             }
@@ -23,10 +25,11 @@ macro_rules! test_pattern {
             #[test]
             #[ignore = "expensive"]
             fn encode_decode_1() -> io::Result<()> {
+                let mut monkey = Monkey::default();
                 for seed in 0..0x0800 {
                     let vec = Iterator::take(Seq::masked(Rng::new(seed), 0x03030303), 0x1000)
                         .collect::<Vec<_>>();
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                 }
                 Ok(())
             }
@@ -35,6 +38,6 @@ macro_rules! test_pattern {
 }
 
 test_pattern!(encode, ops::encode);
-test_pattern!(encode_ring, ops::encode_ring);
-test_pattern!(encode_writer, ops::encode_ring_writer_bytes);
-test_pattern!(encode_ring_writer, ops::encode_ring_writer);
+test_pattern!(encode_bytes, ops::encode_bytes);
+test_pattern!(encode_writer, ops::encode_writer);
+test_pattern!(encode_writer_bytes, ops::encode_writer_bytes);

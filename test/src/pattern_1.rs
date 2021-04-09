@@ -3,7 +3,7 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
-
+            use crate::monkey::Monkey;
             use crate::ops;
 
             use std::io;
@@ -12,8 +12,9 @@ macro_rules! test_pattern {
             #[ignore = "expensive"]
             fn encode_decode_0() -> io::Result<()> {
                 let mut vec = Vec::with_capacity(0x8000);
+                let mut monkey = Monkey::default();
                 while vec.len() != 0x8000 {
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                     vec.push(0);
                 }
                 Ok(())
@@ -23,8 +24,9 @@ macro_rules! test_pattern {
             #[ignore = "expensive"]
             fn encode_decode_1() -> io::Result<()> {
                 let mut vec = Vec::with_capacity(0x0010_0000);
+                let mut monkey = Monkey::default();
                 while vec.len() != 0x0008_0200 {
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                     vec.extend_from_slice(&[0u8; 0x100]);
                 }
                 Ok(())
@@ -35,8 +37,9 @@ macro_rules! test_pattern {
             fn encode_decode_2() -> io::Result<()> {
                 let mut vec = Vec::with_capacity(0x0010_0000);
                 vec.resize(0x0007_FE00, 0);
+                let mut monkey = Monkey::default();
                 while vec.len() != 0x0008_0200 {
-                    ops::check_encode_decode(&vec, $encoder)?;
+                    monkey.encode_decode(&vec, $encoder)?;
                     vec.push(0);
                 }
                 Ok(())
@@ -46,6 +49,6 @@ macro_rules! test_pattern {
 }
 
 test_pattern!(encode, ops::encode);
-test_pattern!(encode_ring, ops::encode_ring);
-test_pattern!(encode_writer, ops::encode_ring_writer_bytes);
-test_pattern!(encode_ring_writer, ops::encode_ring_writer);
+test_pattern!(encode_bytes, ops::encode_bytes);
+test_pattern!(encode_writer, ops::encode_writer);
+test_pattern!(encode_writer_bytes, ops::encode_writer_bytes);

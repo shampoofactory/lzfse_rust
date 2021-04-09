@@ -33,48 +33,49 @@ const CORPUS_ENWIK8_HASH: &[u8] = include_bytes!("../../data/large/enwik8.hash")
 macro_rules! test_codec {
     ($name:ident, $data:ident, $hash:ident) => {
         mod $name {
+            use crate::monkey::Monkey;
             use crate::ops;
 
             use std::io;
 
             #[test]
             pub fn decode() -> io::Result<()> {
-                ops::check_decode_hash(super::$data, super::$hash, ops::decode)
+                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode)
+            }
+
+            #[test]
+            pub fn decode_bytes() -> io::Result<()> {
+                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_bytes)
             }
 
             #[test]
             pub fn decode_reader() -> io::Result<()> {
-                ops::check_decode_hash(super::$data, super::$hash, ops::decode_ring_reader_bytes)
+                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_reader)
             }
 
             #[test]
-            pub fn decode_ring() -> io::Result<()> {
-                ops::check_decode_hash(super::$data, super::$hash, ops::decode_ring)
-            }
-
-            #[test]
-            pub fn decode_ring_reader() -> io::Result<()> {
-                ops::check_decode_hash(super::$data, super::$hash, ops::decode_ring_reader)
+            pub fn decode_reader_bytes() -> io::Result<()> {
+                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_reader_bytes)
             }
 
             #[test]
             pub fn encode() -> io::Result<()> {
-                ops::check_decode_encode_decode(super::$data, ops::encode)
+                Monkey::default().decode_encode_decode(super::$data, ops::encode)
+            }
+
+            #[test]
+            pub fn encode_bytes() -> io::Result<()> {
+                Monkey::default().decode_encode_decode(super::$data, ops::encode_bytes)
             }
 
             #[test]
             pub fn encode_writer() -> io::Result<()> {
-                ops::check_decode_encode_decode(super::$data, ops::encode_ring_writer_bytes)
+                Monkey::default().decode_encode_decode(super::$data, ops::encode_writer)
             }
 
             #[test]
-            pub fn encode_ring() -> io::Result<()> {
-                ops::check_decode_encode_decode(super::$data, ops::encode_ring)
-            }
-
-            #[test]
-            pub fn encode_ring_writer() -> io::Result<()> {
-                ops::check_decode_encode_decode(super::$data, ops::encode_ring_writer)
+            pub fn encode_writer_bytes() -> io::Result<()> {
+                Monkey::default().decode_encode_decode(super::$data, ops::encode_writer_bytes)
             }
         }
     };

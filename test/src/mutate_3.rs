@@ -14,16 +14,19 @@ const RAW_HASH: &[u8] = include_bytes!("../../data/mutate/raw.hash");
 macro_rules! test_mutate {
     ($name:ident, $data:ident, $hash:ident) => {
         mod $name {
+            use crate::monkey::Monkey;
             use crate::ops;
+
+            use lzfse_rust::LzfseRingDecoder;
 
             use std::io;
 
             pub fn check_mutate<F>(data: &[u8], hash: &[u8], decode: F) -> io::Result<()>
             where
-                F: Fn(&[u8], &mut Vec<u8>) -> io::Result<()>,
+                F: Fn(&mut LzfseRingDecoder, &[u8], &mut Vec<u8>) -> io::Result<()>,
             {
+                let mut monkey = Monkey::default();
                 let mut data = data.to_vec();
-                let mut vec = Vec::with_capacity(data.len() * 4);
                 for index in 0..data.len() - 3 {
                     let u = data[index + 0];
                     let v = data[index + 1];
@@ -33,18 +36,18 @@ macro_rules! test_mutate {
                     data[index + 1] = 0x00;
                     data[index + 2] = 0x00;
                     data[index + 3] = 0x00;
-                    let _ = ops::check_decode_mutate(&data, &decode, &mut vec);
+                    let _ = monkey.blind_decode(&data, &decode);
                     data[index + 0] = 0xFF;
                     data[index + 1] = 0xFF;
                     data[index + 2] = 0xFF;
                     data[index + 3] = 0xFF;
-                    let _ = ops::check_decode_mutate(&data, &decode, &mut vec);
+                    let _ = monkey.blind_decode(&data, &decode);
                     data[index + 0] = u;
                     data[index + 1] = v;
                     data[index + 2] = w;
                     data[index + 3] = x;
                 }
-                ops::check_decode_hash(&data, hash, decode)
+                monkey.decode_hash(&data, hash, ops::decode)
             }
 
             #[test]
@@ -55,20 +58,20 @@ macro_rules! test_mutate {
 
             #[test]
             #[ignore = "expensive"]
+            fn mutate_bytes() -> io::Result<()> {
+                check_mutate(super::$data, super::$hash, ops::decode_bytes)
+            }
+
+            #[test]
+            #[ignore = "expensive"]
             fn mutate_reader() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring_reader_bytes)
+                check_mutate(super::$data, super::$hash, ops::decode_reader)
             }
 
             #[test]
             #[ignore = "expensive"]
-            fn mutate_ring() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring)
-            }
-
-            #[test]
-            #[ignore = "expensive"]
-            fn mutate_ring_reader() -> io::Result<()> {
-                check_mutate(super::$data, super::$hash, ops::decode_ring_reader)
+            fn mutate_reader_bytes() -> io::Result<()> {
+                check_mutate(super::$data, super::$hash, ops::decode_reader_bytes)
             }
         }
     };
