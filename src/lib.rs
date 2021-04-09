@@ -130,7 +130,6 @@ mod decode;
 mod encode;
 mod error;
 mod fse;
-mod io;
 mod kit;
 mod lmd;
 mod lz;
