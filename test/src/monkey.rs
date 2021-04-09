@@ -1,9 +1,6 @@
 use lzfse_rust::{LzfseRingDecoder, LzfseRingEncoder};
 use sha2::{Digest, Sha256};
 
-#[cfg(feature = "lzfse_ref")]
-use super::ops;
-
 use std::io;
 
 // Decode output estimation
@@ -64,10 +61,17 @@ impl Monkey {
         #[cfg(feature = "lzfse_ref")]
         {
             // Decode self.enc -> self.dec
-            ops::decode_lzfse(&mut self.enc.as_slice(), &mut self.dec);
+            decode_lzfse(&mut self.enc.as_slice(), &mut self.dec);
             // Validate
             assert!(data == self.dec);
-            // TODO encode lzfse
+            // Encode data -> self.enc
+            encode_lzfse(data, &mut self.enc);
+            // Decode self.enc -> self.dec
+            self.dec.clear();
+            self.dec.reserve(self.data.len());
+            self.decoder.decode(&mut self.enc.as_slice(), &mut self.dec)?;
+            // Validate
+            assert!(data == self.dec);
         }
         Ok(())
     }
@@ -93,10 +97,17 @@ impl Monkey {
         #[cfg(feature = "lzfse_ref")]
         {
             // Decode self.enc -> self.dec
-            ops::decode_lzfse(&mut self.enc.as_slice(), &mut self.dec);
+            decode_lzfse(&mut self.enc.as_slice(), &mut self.dec);
             // Validate
             assert!(self.data == self.dec);
-            // TODO encode lzfse
+            // Encode data -> self.enc
+            encode_lzfse(&self.data, &mut self.enc);
+            // Decode self.enc -> self.dec
+            self.dec.clear();
+            self.dec.reserve(self.data.len());
+            self.decoder.decode(&mut self.enc.as_slice(), &mut self.dec)?;
+            // Validate
+            assert!(self.data == self.dec);
         }
         Ok(())
     }
@@ -110,6 +121,29 @@ impl Default for Monkey {
             data: Vec::default(),
             enc: Vec::default(),
             dec: Vec::default(),
+        }
+    }
+}
+
+#[cfg(feature = "lzfse_ref")]
+fn decode_lzfse(src: &[u8], dst: &mut Vec<u8>) {
+    let n = lzfse_sys::decode(src, dst);
+    dst.truncate(n);
+}
+
+#[cfg(feature = "lzfse_ref")]
+fn encode_lzfse(src: &[u8], dst: &mut Vec<u8>) {
+    if dst.len() < 0x1000 {
+        dst.resize(0x1000, 0);
+    }
+    loop {
+        let n = lzfse_sys::encode(src, dst.as_mut_slice());
+        if n == 0 {
+            dst.resize(dst.len() * 2, 0);
+            continue;
+        } else {
+            dst.truncate(n);
+            break;
         }
     }
 }

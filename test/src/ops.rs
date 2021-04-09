@@ -83,9 +83,3 @@ pub fn encode_writer_bytes(
     *dst = wtr.finalize()?;
     Ok(())
 }
-
-#[cfg(feature = "lzfse_ref")]
-pub fn decode_lzfse(src: &[u8], dst: &mut Vec<u8>) {
-    let n = lzfse_sys::decode(src, dst);
-    dst.truncate(n);
-}
