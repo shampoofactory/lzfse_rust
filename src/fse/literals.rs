@@ -69,9 +69,7 @@ impl Literals {
             unsafe { *ptr.add(i + 0) = decoder.u(&mut reader, &mut state.0) };
             unsafe { *ptr.add(i + 1) = decoder.u(&mut reader, &mut state.1) };
             #[cfg(target_pointer_width = "32")]
-            unsafe {
-                reader.flush()
-            };
+            reader.flush();
             unsafe { *ptr.add(i + 2) = decoder.u(&mut reader, &mut state.2) };
             unsafe { *ptr.add(i + 3) = decoder.u(&mut reader, &mut state.3) };
             reader.flush();
