@@ -131,10 +131,10 @@ impl<'a> FrontendBytes<'a> {
             let incoming = unsafe { self.find_match::<B::Type>(queue, item) };
             if let Some(select) = self.pending.select::<GOOD_MATCH_LEN>(incoming) {
                 unsafe { self.push_match(backend, dst, select)? };
-                if self.literal_idx >= mark {
-                    // Unlikely.
-                    break;
-                }
+                // if self.literal_idx >= mark {
+                //     // Unlikely.
+                //     break;
+                // }
                 idx += 1;
                 for _ in 0..(self.literal_idx - idx) {
                     let u = unsafe { self.get_u32(idx) };
