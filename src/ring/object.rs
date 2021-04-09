@@ -216,8 +216,7 @@ impl<'a, T: RingSize> Ring<'a, T> {
     #[inline(always)]
     pub fn get_u32(&self, idx: Idx) -> u32 {
         let index = idx % T::RING_SIZE;
-        let u = unsafe { self.0.add(index as usize).cast::<u32>().read_unaligned() };
-        u.to_le()
+        unsafe { self.0.add(index as usize).cast::<u32>().read_unaligned() }
     }
 
     #[inline(always)]
