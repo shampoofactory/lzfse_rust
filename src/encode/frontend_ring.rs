@@ -613,7 +613,7 @@ mod tests {
 
     use super::*;
 
-    // Check flush terminal match is detected and correct against a manual constructed reference.
+    // Check flush terminal match is detected and correct against a manually constructed reference.
     #[test]
     fn sandwich() -> io::Result<()> {
         let mut ring_box = RingBox::<Input>::default();
@@ -657,7 +657,6 @@ mod tests {
             frontend.init();
             frontend.copy(&mut fse, &mut frontend_enc, &mut master.as_slice())?;
             frontend.flush(&mut fse, &mut frontend_enc)?;
-
             crate::decode_bytes(&frontend_enc, &mut frontend_dec)?;
             crate::decode_bytes(&backend_enc, &mut backend_dec)?;
 
