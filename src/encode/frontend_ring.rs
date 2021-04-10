@@ -447,6 +447,10 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             let incoming = self.find_match::<B::Type, true>(queue, u_idx, max);
             if let Some(select) = self.pending.select::<GOOD_MATCH_LEN>(incoming) {
                 unsafe { self.push_match(backend, dst, select)? };
+                if self.literal_idx >= self.idx {
+                    // Unlikely.
+                    break;
+                }
                 idx += 1;
                 for _ in 0..(self.literal_idx - idx) {
                     let u = self.ring.get_u32(idx);
