@@ -183,11 +183,6 @@ Column: 1 2 3
 3: throughput                       higher is better
 ```
 
-## Alternatives
-
-* [lzfse-rs](https://github.com/citruz/lzfse-rs) - bindings to the reference [LZFSE](https://github.com/lzfse/lzfse) implementation.
-
-
 ## Minimum Rust version policy
 
 This crate's minimum supported `rustc` version is `1.51.0`.
@@ -208,3 +203,7 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
+
+## Alternatives
+
+* [lzfse-rs](https://github.com/citruz/lzfse-rs) - bindings to the reference [LZFSE](https://github.com/lzfse/lzfse) implementation.
