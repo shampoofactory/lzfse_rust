@@ -97,7 +97,7 @@ impl<'a> FrontendBytes<'a> {
         O: ShortWriter,
     {
         if self.bytes.len() >= 4 {
-            self.process_finalize(backend, dst)?;
+            self.process_final(backend, dst)?;
         }
         if self.pending.match_len != 0 {
             unsafe { self.push_match(backend, dst, self.pending)? };
@@ -112,7 +112,7 @@ impl<'a> FrontendBytes<'a> {
     }
 
     // #[inline(always)]
-    fn process_finalize<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    fn process_final<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
