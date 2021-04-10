@@ -142,7 +142,7 @@ As a library and with the stated test machine, `lzfse_rust` outperforms `lzfse_r
 The benchmarks are powered with [Criterion](https://github.com/bheisler/criterion.rs) and formatted with [critcmp](https://github.com/BurntSushi/critcmp).
 The machine is an 8GB Intel i5-2500K running [Ubuntu](https://ubuntu.com/) 18.04 (64 bit).
 The dataset is taken from [Snappy](https://github.com/google/snappy).
-The benchmark source is [here]([benchmarks](https://github.com/shampoofactory/lzfse_rust/tree/main/bench)), along with instructions on how to build and run the benchmarks.
+The benchmark source is [here](https://github.com/shampoofactory/lzfse_rust/tree/main/bench), along with instructions on how to build and run the benchmarks.
 
 ```
 group                          new/lzfse_ref/                         new/rust/                              new/rust_ring/
