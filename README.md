@@ -122,21 +122,13 @@ $ cargo test -- --ignored
 Integration tests:
 
 ```
-<<<<<<< HEAD
-$ cargo test -p test
-=======
 $ cargo test --manifest-path test/Cargo.toml
->>>>>>> wip
 ```
 
 Integration tests, extended:
 
 ```
-<<<<<<< HEAD
-$ cargo test -p test -- --ignored
-=======
 $ cargo test --manifest-path test/Cargo.toml -- --ignored
->>>>>>> wip
 ```
 
 There are additional integration tests available.
