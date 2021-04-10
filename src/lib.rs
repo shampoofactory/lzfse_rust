@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 /*!
-This crate provides an enhanced implementation of the [Lzfse](https://github.com/lzfse/lzfse)
+This crate provides an enhanced implementation of the [LZFSE](https://github.com/lzfse/lzfse)
 compression library.
 
 ### Install
@@ -9,14 +9,20 @@ Simply configure your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lzfse_rust = "1"
+lzfse_rust = "0.1"
 ```
 
 ### Overview.
 
-This crate provides two Lzfse engines: one operating over memory buffers and one operating over
-IO streams using internal ring buffers. The latter in addition to being highly memory efficient
-is able to expose `Read` and `Write` interfaces.
+This crate provides two LZFSE engines: one operating over user supplied memory buffers, and one operating over internal ring buffers.
+
+The memory buffered engine works directly with input and output buffers that we supply.
+It is exposed via [LzfseEncoder] and [LzfseDecoder] objects.
+We would consider this engine when we are operating on `&[u8]` and `Vec<u8>` objects.
+
+The ring buffered engine works by streaming data in and out of it's ring buffers.
+It is exposed via [LzfseRingEncoder] and [LzfseRingDecoder] objects.
+We would consider this engine when we are operating on IO streams, or when we want to expose a [Read](std::io::Read) or [Write](std::io::Write) interface.
 
 ### Example: compress IO data
 
@@ -107,21 +113,6 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 ```
-
-### Additional notes
-
-The memory buffered engine is exposed as [LzfseDecoder] and [LzfseEncoder] along with the helper
-methods [decode_bytes] and [encode_bytes]. This engine should be considered when operating directly
-with `&[u8]` slices and `Vec<u8>` types. The helper methods whilst convenient should not be used
-repeatedly, in this situation it is more efficient to create either a [LzfseDecoder] or
-[LzfseEncoder] to reuse.
-
-The ring buffered engine is exposed as [LzfseRingDecoder] and [LzfseRingEncoder]. This engine
-should be considered when operating over IO streams or when [Read](std::io::Read)
-or [Write](std::io::Write) functionality is required.
-
-Kindly refer to individual struct and method documentation as there are additional and important
-details that are not covered here.
 */
 
 mod base;

@@ -29,7 +29,7 @@ The quick test takes minutes. The full test takes hours. The extended test takes
 
 Test large data files.
 
-Before enabling we need to download, hash and compress the large data file set into `data/large`. As a prerequisite we require the reference [`lzfse`](https://github.com/lzfse/lzfse) binary and a working internet connection.
+Before enabling we need to download, hash and compress the large data file set into `data/large`. As a prerequisite we require the reference [LZFSE](https://github.com/lzfse/lzfse) binary and a working internet connection.
 
 Then from the project root:
 ```
@@ -98,5 +98,7 @@ We resort to throwing huge amounts of valid and invalid data at the API.
 * large data - large data files: 100MB+.
 * huge data - huge virtual synthetic data files: 64GB+.
 * pattern - synthetic data pattern variations.
+* patchwork - patchwork data.
 * mutate - RAW, Vn, Vx1, Vx2 data mutation.
-* fuzz - fuzzed data // TODO clarify or rename
+* fuzz - fuzzed read/ write.
+* random - low entropy random data.
