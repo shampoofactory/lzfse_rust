@@ -63,15 +63,6 @@ mod tests {
     advantage over the man who cannot read them."; //  Mark Twain.
 
     #[test]
-    fn encode_decode_all() {
-        let mut enc = Vec::default();
-        encode_all(DATA, &mut enc);
-        let mut dec = Vec::default();
-        decode_all(&enc, dec.as_mut());
-        assert_eq!(DATA, &dec);
-    }
-
-    #[test]
     fn encode_decode() {
         let mut enc = [0u8; 256];
         let n = encode(DATA, enc.as_mut());
