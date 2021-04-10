@@ -8,7 +8,7 @@ use crate::types::{ShortBuffer, ShortBytes};
 use super::block::FseBlock;
 use super::constants::*;
 use super::decoder::{self, Decoder};
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 use super::literals::Literals;
 use super::lmds::Lmds;
 use super::object::Fse;
@@ -127,7 +127,7 @@ impl FseCore {
                 }
             } else {
                 // Unlikely.
-                return Err(Error::BadLmdPayload.into());
+                return Err(FseErrorKind::BadLmdPayload.into());
             }
             n -= 1;
         }
@@ -138,7 +138,7 @@ impl FseCore {
         {
             Ok(())
         } else {
-            Err(Error::BadLmdPayload.into())
+            Err(FseErrorKind::BadLmdPayload.into())
         }
     }
 
@@ -170,7 +170,7 @@ impl FseCore {
                     break;
                 } else {
                     // Unlikely
-                    return Err(Error::BadLmdPayload.into());
+                    return Err(FseErrorKind::BadLmdPayload.into());
                 }
             }
             let &LmdPack(literal_len_pack, match_len_pack, match_distance_pack) =
@@ -189,7 +189,7 @@ impl FseCore {
                 }
             } else {
                 // Unlikely
-                return Err(Error::BadLmdPayload.into());
+                return Err(FseErrorKind::BadLmdPayload.into());
             }
             lmd_index += 1;
         }

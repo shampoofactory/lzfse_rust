@@ -36,13 +36,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// }
 /// ```
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// [IO](std::io) errors.
     Io(io::Error),
     /// FSE specific errors.
-    Fse(fse::Error),
+    Fse(fse::FseErrorKind),
     /// VN specific errors.
-    Vn(vn::Error),
+    Vn(vn::VnErrorKind),
     /// Unknown or unsupported block type (magic bytes).
     BadBlock(u32),
     /// Bad bitstream.
@@ -80,20 +81,19 @@ impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             Self::Io(e) => Some(e),
-            Self::Fse(e) => Some(e),
             _ => None,
         }
     }
 }
 
-impl From<fse::Error> for Error {
-    fn from(err: fse::Error) -> Error {
+impl From<fse::FseErrorKind> for Error {
+    fn from(err: fse::FseErrorKind) -> Error {
         Error::Fse(err)
     }
 }
 
-impl From<vn::Error> for Error {
-    fn from(err: vn::Error) -> Error {
+impl From<vn::VnErrorKind> for Error {
+    fn from(err: vn::VnErrorKind) -> Error {
         Error::Vn(err)
     }
 }

@@ -6,7 +6,7 @@ use crate::types::{ByteReader, ShortBuffer, ShortBytes};
 
 use super::block::VnBlock;
 use super::constants::*;
-use super::error::Error;
+use super::error_kind::VnErrorKind;
 use super::object::Vn;
 use super::opc;
 
@@ -94,7 +94,7 @@ impl VnCore {
                 return Err(crate::Error::PayloadUnderflow);
             }
             if n_raw_bytes_len as u32 > self.n_raw_bytes {
-                return Err(Error::BadPayload.into());
+                return Err(VnErrorKind::BadPayload.into());
             }
             self.n_payload_bytes -= n_payload_bytes_len as u32;
             self.n_raw_bytes -= n_raw_bytes_len as u32;
@@ -104,7 +104,7 @@ impl VnCore {
             return match res {
                 Ok(true) => Ok(self.n_raw_bytes != 0),
                 Ok(false) if self.n_payload_bytes != 0 => Err(crate::Error::PayloadOverflow),
-                Ok(false) if self.n_raw_bytes != 0 => Err(Error::BadPayload.into()),
+                Ok(false) if self.n_raw_bytes != 0 => Err(VnErrorKind::BadPayload.into()),
                 Ok(false) => Ok(false),
                 Err(crate::Error::PayloadUnderflow) if cycle => continue,
                 Err(err) => Err(err),
@@ -166,7 +166,7 @@ impl VnCore {
             Op::LrgD => self.typ_d(dst, src.get_unchecked(3..), opc::decode_lrg_d(opu))? + 3,
             Op::Nop => self.nop(src.get_unchecked(1..))? + 1,
             Op::Eos => return self.eos(src),
-            Op::Udef => return Err(Error::BadOpcode.into()),
+            Op::Udef => return Err(VnErrorKind::BadOpcode.into()),
         };
         debug_assert!(n_payload_bytes as usize + 8 <= src.len());
         debug_assert_ne!(n_payload_bytes, 0);
@@ -178,7 +178,7 @@ impl VnCore {
             return Err(crate::Error::PayloadUnderflow);
         }
         if src[..8] != [EOS, 0, 0, 0, 0, 0, 0, 0] {
-            return Err(Error::BadPayload.into());
+            return Err(VnErrorKind::BadPayload.into());
         }
         Ok(None)
     }

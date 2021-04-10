@@ -2,7 +2,7 @@ use crate::lmd::LmdPack;
 use crate::types::ShortWriter;
 
 use super::constants::{self, *};
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 use super::weight_encoder::{self};
 use super::Fse;
 use std::mem;
@@ -65,10 +65,10 @@ impl Weights {
 
     pub fn load_v1(&mut self, src: &[u8]) -> crate::Result<()> {
         if src.len() < V1_WEIGHT_PAYLOAD_BYTES as usize {
-            return Err(Error::WeightPayloadUnderflow.into());
+            return Err(FseErrorKind::WeightPayloadUnderflow.into());
         }
         if src.len() > V1_WEIGHT_PAYLOAD_BYTES as usize {
-            return Err(Error::WeightPayloadOverflow.into());
+            return Err(FseErrorKind::WeightPayloadOverflow.into());
         }
         let src = src.as_ptr();
         let dst = self.0.as_mut_ptr();
@@ -96,10 +96,10 @@ impl Weights {
             accum_bits -= w_bits as isize;
         }
         if accum_bits < 0 {
-            return Err(Error::WeightPayloadUnderflow.into());
+            return Err(FseErrorKind::WeightPayloadUnderflow.into());
         }
         if accum_bits >= 8 || i != src.len() {
-            return Err(Error::WeightPayloadOverflow.into());
+            return Err(FseErrorKind::WeightPayloadOverflow.into());
         }
         self.check_totals()
     }
@@ -193,7 +193,7 @@ impl Weights {
             Ok(())
         } else {
             self.0.fill(0);
-            Err(Error::BadWeightPayload.into())
+            Err(FseErrorKind::BadWeightPayload.into())
         }
     }
 }

@@ -135,6 +135,8 @@ mod vn;
 pub use decode::{decode_bytes, LzfseDecoder, LzfseReader, LzfseReaderBytes, LzfseRingDecoder};
 pub use encode::{encode_bytes, LzfseEncoder, LzfseRingEncoder, LzfseWriter, LzfseWriterBytes};
 pub use error::{Error, Result};
+pub use fse::FseErrorKind;
+pub use vn::VnErrorKind;
 
 #[cfg(test)]
 mod tests {

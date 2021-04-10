@@ -5,7 +5,7 @@ use crate::ops::{Len, ReadData, WriteData};
 use crate::types::ShortBuffer;
 
 use super::constants::*;
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 
 /// Theoretical maximum `n_raw_bytes` given the supplied parameters.
 pub fn n_raw_bytes_limit(n_literals: u32, n_lmds: u32) -> u32 {
@@ -34,7 +34,7 @@ pub struct FseBlock {
 impl FseBlock {
     pub fn new(n_raw_bytes: u32, literals: LiteralParam, lmds: LmdParam) -> crate::Result<Self> {
         if n_raw_bytes > n_raw_bytes_limit(literals.num(), lmds.num()) {
-            Err(Error::BadRawByteCount.into())
+            Err(FseErrorKind::BadRawByteCount.into())
         } else {
             Ok(Self { literal: literals, lmd: lmds, n_raw_bytes })
         }
@@ -97,7 +97,7 @@ impl FseBlock {
         self.lmd.state[1]             = src.read_u16();
         self.lmd.state[2]             = src.read_u16();
         if n_payload_bytes < self.literal.n_payload_bytes.wrapping_add(self.lmd.n_payload_bytes) {
-            return Err(Error::BadPayloadCount.into());
+            return Err(FseErrorKind::BadPayloadCount.into());
         }
         self.validate()?;
         Ok((V1_HEADER_SIZE, V1_WEIGHT_PAYLOAD_BYTES))
@@ -129,7 +129,7 @@ impl FseBlock {
         self.lmd.state[2]            =     p.get_bits(52, 10) as u16;
         let n_weight_payload_bytes = header_size.wrapping_sub(V2_HEADER_SIZE);
         if n_weight_payload_bytes > V2_WEIGHT_PAYLOAD_BYTES_MAX {
-            return Err(Error::BadWeightPayload.into());
+            return Err(FseErrorKind::BadWeightPayload.into());
         }
         self.validate()?;
         Ok((V2_HEADER_SIZE, n_weight_payload_bytes))
@@ -219,7 +219,7 @@ impl FseBlock {
         self.lmd.validate()?;
         self.literal.validate()?;
         if self.n_raw_bytes > n_raw_bytes_limit(self.literal.num, self.lmd.num) {
-            return Err(Error::BadRawByteCount.into());
+            return Err(FseErrorKind::BadRawByteCount.into());
         }
 
         Ok(())
@@ -275,14 +275,14 @@ impl LmdParam {
             || self.n_payload_bytes < 8
             || self.n_payload_bytes > lmd_n_payload_bytes_limit(self.num)
         {
-            Err(Error::BadLmdCount(self.num).into())
+            Err(FseErrorKind::BadLmdCount(self.num).into())
         } else if self.bits > 7 {
-            Err(Error::BadLmdBits.into())
+            Err(FseErrorKind::BadLmdBits.into())
         } else if (self.state[0] as u32) >= L_STATES
             || (self.state[1] as u32) >= M_STATES
             || (self.state[2] as u32) >= D_STATES
         {
-            Err(Error::BadLmdState.into())
+            Err(FseErrorKind::BadLmdState.into())
         } else {
             Ok(())
         }
@@ -338,15 +338,15 @@ impl LiteralParam {
             || self.num > LITERALS_PER_BLOCK
             || self.n_payload_bytes > literal_n_payload_bytes_limit(self.num)
         {
-            Err(Error::BadLiteralCount(self.num).into())
+            Err(FseErrorKind::BadLiteralCount(self.num).into())
         } else if self.bits > 7 {
-            Err(Error::BadLiteralBits.into())
+            Err(FseErrorKind::BadLiteralBits.into())
         } else if (self.state[0] as u32) >= U_STATES
             || (self.state[1] as u32) >= U_STATES
             || (self.state[2] as u32) >= U_STATES
             || (self.state[3] as u32) >= U_STATES
         {
-            Err(Error::BadLmdPayload.into())
+            Err(FseErrorKind::BadLmdPayload.into())
         } else {
             Ok(())
         }

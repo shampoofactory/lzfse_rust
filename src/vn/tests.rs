@@ -391,7 +391,7 @@ fn mutate_block_3() -> crate::Result<()> {
             continue;
         }
         match ops::vn_decompress(&mut dec, &mut enc.as_slice()) {
-            Err(Error::Vn(super::Error::BadPayload)) => {}
+            Err(Error::Vn(super::VnErrorKind::BadPayload)) => {}
             _ => panic!(),
         }
         dec.clear();
@@ -415,7 +415,7 @@ fn mutate_block_4() -> crate::Result<()> {
             continue;
         }
         match ops::vn_decompress(&mut dec, &mut enc.as_slice()) {
-            Err(Error::Vn(super::Error::BadPayload)) => {}
+            Err(Error::Vn(super::VnErrorKind::BadPayload)) => {}
             _ => panic!(),
         }
         dec.clear();

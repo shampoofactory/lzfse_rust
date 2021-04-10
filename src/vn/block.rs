@@ -4,7 +4,7 @@ use crate::ops::{Len, ReadData, WriteData};
 use crate::types::ShortBuffer;
 
 use super::constants::*;
-use super::error::Error;
+use super::error_kind::VnErrorKind;
 
 #[derive(Copy, Clone, Debug)]
 pub struct VnBlock {
@@ -15,7 +15,7 @@ pub struct VnBlock {
 impl VnBlock {
     pub fn new(n_raw_bytes: u32, n_payload_bytes: u32) -> crate::Result<Self> {
         if n_payload_bytes < 8 {
-            Err(Error::BadPayloadCount(n_payload_bytes).into())
+            Err(VnErrorKind::BadPayloadCount(n_payload_bytes).into())
         } else {
             Ok(Self { n_raw_bytes, n_payload_bytes })
         }

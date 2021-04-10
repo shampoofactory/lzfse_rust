@@ -2,7 +2,7 @@ use crate::bits::{BitDst, BitWriter};
 use crate::lmd::{LiteralLen, MatchDistancePack, MatchLen};
 
 use super::constants::{self, *};
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 use super::weights::Weights;
 use super::Fse;
 
@@ -144,7 +144,7 @@ macro_rules! create_state_struct {
         }
 
         impl TryFrom<u32> for $name {
-            type Error = Error;
+            type Error = crate::Error;
 
             #[inline(always)]
             fn try_from(v: u32) -> Result<Self, Self::Error> {
@@ -174,10 +174,10 @@ macro_rules! create_state_struct {
     };
 }
 
-create_state_struct!(L, L_STATES, Error::BadLmdState);
-create_state_struct!(M, M_STATES, Error::BadLmdState);
-create_state_struct!(D, D_STATES, Error::BadLmdState);
-create_state_struct!(U, U_STATES, Error::BadLiteralState);
+create_state_struct!(L, L_STATES, FseErrorKind::BadLmdState.into());
+create_state_struct!(M, M_STATES, FseErrorKind::BadLmdState.into());
+create_state_struct!(D, D_STATES, FseErrorKind::BadLmdState.into());
+create_state_struct!(U, U_STATES, FseErrorKind::BadLiteralState.into());
 
 #[derive(Copy, Clone, Debug)]
 #[repr(align(4))]

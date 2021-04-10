@@ -1,30 +1,47 @@
-use std::error;
 use std::fmt;
 
-#[derive(Copy, Clone, Debug)]
-pub enum Error {
-    BadBitStream,
+/// FSE error kinds.
+///
+/// Low-level error kinds.
+/// As a general rule, these should not be matched against.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum FseErrorKind {
+    /// Bad literal bits.
     BadLiteralBits,
+    /// Bad literal count.
     BadLiteralCount(u32),
+    /// Bad literal payload.
     BadLiteralPayload,
+    /// Bad literal state.
     BadLiteralState,
+    /// Bad LMD bits.
     BadLmdBits,
+    /// Bad LMD count.
     BadLmdCount(u32),
+    /// Bad LMD payload.
     BadLmdPayload,
+    /// Bad LMD state.
     BadLmdState,
+    /// Bad payload count.
     BadPayloadCount,
+    /// Bad raw byte count.
     BadRawByteCount,
+    /// Bad reader state.
     BadReaderState,
+    /// Bad weight payload.
     BadWeightPayload,
+    /// Bad weight payload count.
     BadWeightPayloadCount,
+    /// Weight payload overflow.    
     WeightPayloadOverflow,
+    /// Weight payload underflow.
     WeightPayloadUnderflow,
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for FseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
         match self {
-            Self::BadBitStream => write!(f, "bad bitstream"),
             Self::BadLiteralBits => write!(f, "bad literal bits"),
             Self::BadLiteralCount(u) => write!(f, "bad literal count: 0x{:08X}", u),
             Self::BadLiteralPayload => write!(f, "bad literal payload"),
@@ -43,5 +60,3 @@ impl fmt::Display for Error {
         }
     }
 }
-
-impl error::Error for Error {}

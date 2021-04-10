@@ -7,7 +7,7 @@ use super::block::LiteralParam;
 use super::constants::*;
 use super::decoder::{self, Decoder};
 use super::encoder::{self, Encoder};
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 use super::Fse;
 
 use std::io;
@@ -84,7 +84,7 @@ impl Literals {
                 decoder::U::default(),
             )
         {
-            return Err(Error::BadLmdPayload.into());
+            return Err(FseErrorKind::BadLmdPayload.into());
         }
         self.1 = n_literals;
         Ok(())

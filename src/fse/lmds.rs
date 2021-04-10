@@ -6,7 +6,7 @@ use super::block::LmdParam;
 use super::constants::*;
 use super::decoder::{self, Decoder};
 use super::encoder::{self, Encoder};
-use super::error::Error;
+use super::error_kind::FseErrorKind;
 use super::object::Fse;
 
 use std::io;
@@ -53,7 +53,7 @@ impl Lmds {
         }
         reader.finalize()?;
         if state != (decoder::L::default(), decoder::M::default(), decoder::D::default()) {
-            return Err(Error::BadLmdPayload.into());
+            return Err(FseErrorKind::BadLmdPayload.into());
         }
         self.1 = n_lmds;
         Ok(())

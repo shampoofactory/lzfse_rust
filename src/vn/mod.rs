@@ -1,7 +1,7 @@
 mod backend;
 mod block;
 mod constants;
-mod error;
+mod error_kind;
 mod object;
 mod opc;
 mod ops;
@@ -12,7 +12,7 @@ mod tests;
 
 pub use backend::BackendVn;
 pub use block::VnBlock;
-pub use error::Error;
+pub use error_kind::VnErrorKind;
 pub use object::Vn;
 pub use ops::{vn_decompress, vn_probe};
 pub use vn_core::VnCore;

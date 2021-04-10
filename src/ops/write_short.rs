@@ -8,7 +8,7 @@ use std::io;
 use std::ptr;
 use std::slice;
 
-/// Low level write buffer access methods.
+/// Low-level write buffer access methods.
 pub trait WriteShort: Allocate + ShortLimit {
     // Little endian.
     #[inline(always)]
