@@ -5,22 +5,21 @@
 ## Basic usage
 
 ```bash
-$ cd bench
-$ RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap
+$ RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap --manifest-path bench/Cargo.toml 
 ```
 
 ```bash
-$ cd bench
-$ RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap -- --save-baseline before
+$ RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap --manifest-path bench/Cargo.toml -- --save-baseline before
 ```
 
 ## Lzfse reference
 
-Build the local `lzfse_sys` crate using the supplied instructions. To enable the reference lzfse benchmarks we need to pass the `lzfse_ref` feature flag and inform rustc of the reference lzfse library `liblzfse.a` location, in this case `/usr/local/lib/x86_64-linux-gnu`.
+Benchmark the reference `lzfse` library.
+
+For this to work, we need to build the reference LZFSE `liblzfse.a` library and inform `rustc` of it's whereabouts. See the `lzfse_sys/README.md` for instructions on how to do this.
 
 ```bash
-$ cd bench
-$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu -C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap --features lzfse_ref
+$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu -C opt-level=3 -C target-cpu=native -C codegen-units=1" cargo bench snap --manifest-path bench/Cargo.toml --features lzfse_ref
 ```
 ## Organization
 
