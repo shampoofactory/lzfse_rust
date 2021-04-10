@@ -39,7 +39,7 @@ pub unsafe fn write_match_16(src: *const u8, dst: *mut u8, dst_end: *mut u8) {
 /// * `dst` is valid for `len + WIDE` byte writes.
 /// * `8 <= distance`
 /// * `distance <= 16`
-// TODO benchmark, may be inefficient on 32 bit systems.
+// TODO benchmark, may be inefficient on 32 bit builds.
 #[inline(always)]
 pub unsafe fn write_match_8(src: *const u8, dst: *mut u8, dst_end: *mut u8, distance: usize) {
     delta_16(expand_r16(src), dst, dst_end, distance)
