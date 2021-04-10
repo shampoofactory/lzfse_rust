@@ -93,6 +93,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "expensive"]
     fn match_inc_1() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
@@ -110,6 +111,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "expensive"]
     fn match_inc_2() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
@@ -127,6 +129,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "expensive"]
     fn match_dec_1() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {
@@ -142,6 +145,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "expensive"]
     fn match_dec_2() {
         let mut buf = [0u8; 64];
         for index in 1..buf.len() {

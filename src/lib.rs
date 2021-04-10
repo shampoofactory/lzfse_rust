@@ -135,3 +135,16 @@ mod vn;
 pub use decode::{decode_bytes, LzfseDecoder, LzfseReader, LzfseReaderBytes, LzfseRingDecoder};
 pub use encode::{encode_bytes, LzfseEncoder, LzfseRingEncoder, LzfseWriter, LzfseWriterBytes};
 pub use error::{Error, Result};
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_readme_deps() {
+        version_sync::assert_markdown_deps_updated!("README.md");
+    }
+
+    #[test]
+    fn test_html_root_url() {
+        version_sync::assert_html_root_url_updated!("src/lib.rs");
+    }
+}

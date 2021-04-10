@@ -619,6 +619,7 @@ mod tests {
 
     // Check flush terminal match is detected and correct against a manually constructed reference.
     #[test]
+    #[ignore = "expensive"]
     fn sandwich() -> io::Result<()> {
         let mut ring_box = RingBox::<Input>::default();
         let mut table = HistoryTable::default();

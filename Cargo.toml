@@ -1,6 +1,6 @@
 [package]
 name = "lzfse_rust"
-version = "0.1.0"
+version = "0.1.0" # remember to update lzfoo
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
 description = """
 A pure Rust LZFSE library.
@@ -25,4 +25,5 @@ bench = false
 opt-level = 3
 
 [dev-dependencies]
+version-sync = "0.9.2"
 test_kit = { path = "test_kit" }
