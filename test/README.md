@@ -6,20 +6,17 @@ API tests.
 
 Quick test:
 ```
-$ cd test
-$ cargo test
+$ cargo test --manifest-path test/Cargo.toml 
 ```
 
 Full test:
 ```
-$ cd test
-$ cargo test -- --ignored
+$ cargo test --manifest-path test/Cargo.toml -- --ignored
 ```
 
 Extended test:
 ```
-$ cd test
-$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --features "large_data huge_data lzfse_ref" -- --ignored 
+$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test/Cargo.toml --features "large_data huge_data lzfse_ref" -- --ignored
 ```
 
 
@@ -40,23 +37,20 @@ $ ./scripts/init_large.sh
 We can then pass the `large_data` feature flag to enable large data tests.
 
 ```
-$ cd test
-$ cargo test large --features large_data
+$ cargo test large --manifest-path test/Cargo.toml --features large_data
 ```
 ```
-$ cd test
-$ cargo test --features large_data
+$ cargo test --manifest-path test/Cargo.toml --features large_data
 ```
 
 ## Lzfse reference
 
 Test `lzfse_rust`/ `lzfse` compatibility. Here `lzfse_rust` compressed data is handed over to `lzfse` to decompress and vice versa.
 
-Build the local `lzfse_sys` crate using the supplied instructions. To enable the reference lzfse compatibility testing we need to pass the `lzfse_ref` feature flag and inform rustc of the reference lzfse library `liblzfse.a` location, in this case `/usr/local/lib/x86_64-linux-gnu`.
+For this to work, we need to build the reference LZFSE `liblzfse.a` library and inform `rustc` of it's whereabouts. See the `lzfse_sys/README.md` for instructions on how to do this.
 
 ```
-$ cd test
-$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --features lzfse_ref -- --ignored
+$ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test/Cargo.toml --features lzfse_ref -- --ignored
 ```
 
 ## Huge data
@@ -65,13 +59,11 @@ Test huge virtual synthetic data files using concurrent `lzfse_rust` process inv
 Although we are testing 64GB+ data files the actual memory requirements should not exceed 2MB.
 
 ```
-$ cd test
-$ cargo test huge --features huge_data
+$ cargo test huge --manifest-path test/Cargo.toml --features huge_data
 ```
 
 ```
-$ cd test
-$ cargo test --features huge_data
+$ cargo test --manifest-path test/Cargo.toml --features huge_data
 ```
 
 ## Test organization

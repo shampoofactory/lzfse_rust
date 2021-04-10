@@ -21,11 +21,11 @@ This crate provides two LZFSE engines: one operating over user supplied memory b
 
 The memory buffered engine works directly with input and output buffers that we supply.
 It is exposed via `LzfseEncoder` and `LzfseDecoder` objects.
-We would consider this engine when we are operating on `&[u8]` and `Vec<u8>` objects.
+We would consider this engine when operating on `&[u8]` and `Vec<u8>` objects.
 
 The ring buffered engine works by streaming data in and out of it's ring buffers.
 It is exposed via `LzfseRingEncoder` and `LzfseRingDecoder` objects.
-We would consider this engine when we are operating on IO streams, or when we want to expose a `Read` or `Write` interface.
+We would consider this engine when operating on IO streams, or when we want to expose a `Read` or `Write` interface.
 
 Check the documentation for additional information and examples.
 
@@ -122,13 +122,21 @@ $ cargo test -- --ignored
 Integration tests:
 
 ```
+<<<<<<< HEAD
 $ cargo test -p test
+=======
+$ cargo test --manifest-path test/Cargo.toml
+>>>>>>> wip
 ```
 
 Integration tests, extended:
 
 ```
+<<<<<<< HEAD
 $ cargo test -p test -- --ignored
+=======
+$ cargo test --manifest-path test/Cargo.toml -- --ignored
+>>>>>>> wip
 ```
 
 There are additional integration tests available.

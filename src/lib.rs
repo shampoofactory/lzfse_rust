@@ -18,11 +18,11 @@ This crate provides two LZFSE engines: one operating over user supplied memory b
 
 The memory buffered engine works directly with input and output buffers that we supply.
 It is exposed via [LzfseEncoder] and [LzfseDecoder] objects.
-We would consider this engine when we are operating on `&[u8]` and `Vec<u8>` objects.
+We would consider this engine when operating on `&[u8]` and `Vec<u8>` objects.
 
 The ring buffered engine works by streaming data in and out of it's ring buffers.
 It is exposed via [LzfseRingEncoder] and [LzfseRingDecoder] objects.
-We would consider this engine when we are operating on IO streams, or when we want to expose a [Read](std::io::Read) or [Write](std::io::Write) interface.
+We would consider this engine when operating on IO streams, or when we want to expose a [Read](std::io::Read) or [Write](std::io::Write) interface.
 
 ### Example: compress IO data
 
