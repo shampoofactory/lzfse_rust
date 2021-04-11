@@ -15,7 +15,8 @@ Simply configure your `Cargo.toml`:
 lzfse_rust = "0.1"
 ```
 
-## Overview.
+
+## Overview
 
 This crate provides two LZFSE engines: one operating over user supplied memory buffers, and one operating over internal ring buffers.
 
@@ -28,6 +29,9 @@ It is exposed via `LzfseRingEncoder` and `LzfseRingDecoder` objects.
 We would consider this engine when operating on IO streams, or when we want to expose a `Read` or `Write` interface.
 
 Check the documentation for additional information and examples.
+
+
+## Examples
 
 This program compresses data from `stdin` into `stdout`. This example can be found in
  `examples/compress_ring.rs`
@@ -62,6 +66,7 @@ fn main() -> io::Result<()> {
 }
 
 ```
+
 
 # Command line tool: lzfoo
 
@@ -100,7 +105,6 @@ $ lzfoo -decode -i < a.txt.lzfse > a.txt
 Check the [lzfoo crate](https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo) for details.
 
 
-
 ## Testing
 
 This crate comes with a comprehensive test suite that is divided into unit tests and integration tests.
@@ -131,9 +135,10 @@ Integration tests, extended:
 $ cargo test --manifest-path test/Cargo.toml -- --ignored
 ```
 
-There are additional integration tests available.
+Additional integration tests are available.
 Notably, validation tests with the reference LZFSE implementation.
 These are described in [test](https://github.com/shampoofactory/lzfse_rust/tree/main/test), along with instructions on how to build and run them.
+
 
 ## Performance
 
@@ -187,6 +192,7 @@ Column: 1 2 3
 
 This crate's minimum supported `rustc` version is `1.51.0`.
 
+
 ## License
 
 Licensed under either of
@@ -198,11 +204,13 @@ Licensed under either of
 
 at your option.
 
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
+
 
 ## Alternatives
 
