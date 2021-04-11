@@ -173,9 +173,9 @@ encode/snap_uflat11_gaviota    1.49      3.5±0.00ms    50.2 MB/sec    1.00     
 
 ```
 Key:
-lzfse_ref: LZFSE reference library
-rust     : LZFSE
-rust_ring: LZFSE ring
+lzfse_ref: lzfse reference library
+rust     : lzfse_rust
+rust_ring: lzfse_rust ring
 
 Column: 1 2 3
 1: relative time                    lower is better, 1.00 is the fastest 
