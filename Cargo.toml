@@ -1,6 +1,6 @@
 [package]
 name = "lzfse_rust"
-version = "0.1.0" # remember to update lzfoo
+version = "0.1.0" # remember to update lzfooand READMEs
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
 description = """
 A pure Rust LZFSE library.

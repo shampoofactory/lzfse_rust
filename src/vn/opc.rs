@@ -333,6 +333,9 @@ mod tests {
         }
     }
 
+    // Opcodes are defined by a maximum of 3 bytes. Here we decode all combinations, 0 - 0x00FF_FFF,
+    // with an additional margin. We want to test that decodes are working as intended and that
+    // all literal len, match len and match distance values are within bounds.
     #[test]
     #[ignore = "expensive"]
     fn decode_encode() {

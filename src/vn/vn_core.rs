@@ -25,7 +25,9 @@ use std::num::NonZeroU32;
 // As we are using `ShortBuffer` types, unusually we may not be able to fit in an entire LZVN block.
 // However as op decodes are atomic, we can intercept `Error::PayloadOverflow` errors, refill our
 // buffer and continue. We'll refer to this as the `VN_PAYLOAD_LIMIT` overflow mechanism.
-
+//
+// Opcodes, by their very construction, limit literal len, match len and match distance values. The
+// exact limits vary by opcode. With care, this allows us skip certain limit/ boundary checks.
 const MIN_LIMIT: u32 = 0x0200;
 
 pub struct VnCore {
