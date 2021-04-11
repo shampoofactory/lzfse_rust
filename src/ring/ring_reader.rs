@@ -82,6 +82,7 @@ impl<'a, 'b, I: Read, T: 'a + Copy + RingBlock> ByteReader<'a> for RingReader<'b
         Ok(())
     }
 
+    /// Returns a head shadowed view.
     #[inline(always)]
     fn view(&'a self) -> Self::View {
         RingView::new(&self.ring, self.head, self.tail)

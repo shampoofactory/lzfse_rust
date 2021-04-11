@@ -19,8 +19,28 @@ Extended test:
 $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test/Cargo.toml --features "large_data huge_data lzfse_ref" -- --ignored
 ```
 
-
 The quick test takes minutes. The full test takes hours. The extended test takes many hours.
+
+
+## Cross compilation
+
+Install and setup the [cross](https://github.com/rust-embedded/cross) crate.
+We can then test against alternative architectures.
+
+Mips: 32 bit, big endian
+```
+$ cross test --target mips-unknown-linux-gnu --manifest-path test/Cargo.toml
+```
+
+Arm: 32 bit, little endian
+```
+$ cross test --target armv7-unknown-linux-gnueabihf --manifest-path test/Cargo.toml
+```
+
+Arm: 64 bit, little endian
+```
+$ cross test --target aarch64-unknown-linux-gnu --manifest-path test/Cargo.toml
+```
 
 ## Large data
 
@@ -43,6 +63,7 @@ $ cargo test large --manifest-path test/Cargo.toml --features large_data
 $ cargo test --manifest-path test/Cargo.toml --features large_data
 ```
 
+
 ## Lzfse reference
 
 Test `lzfse_rust`/ `lzfse` compatibility. Here `lzfse_rust` compressed data is handed over to `lzfse` to decompress and vice versa.
@@ -52,6 +73,7 @@ For this to work, we need to build the reference LZFSE `liblzfse.a` library and 
 ```
 $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test/Cargo.toml --features lzfse_ref -- --ignored
 ```
+
 
 ## Huge data
 
@@ -65,6 +87,7 @@ $ cargo test huge --manifest-path test/Cargo.toml --features huge_data
 ```
 $ cargo test --manifest-path test/Cargo.toml --features huge_data
 ```
+
 
 ## Test organization
 

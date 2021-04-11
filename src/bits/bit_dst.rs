@@ -44,6 +44,7 @@ impl<T: BitDst + ?Sized> BitDst for &mut T {
 impl BitDst for Vec<u8> {
     #[inline(always)]
     unsafe fn push_bytes_unchecked(&mut self, bytes: usize, n_bytes: usize) {
+        debug_assert!(n_bytes <= mem::size_of::<usize>());
         let index = self.len();
         assert!(mem::size_of::<usize>() <= self.capacity() - self.len());
         let src = bytes.to_le_bytes().as_ptr();
