@@ -1,4 +1,4 @@
-use crate::bits::{BitSrc, NPopBytes};
+use crate::bits::BitSrc;
 use crate::ops::{Len, Pos};
 use crate::types::Idx;
 
@@ -32,8 +32,8 @@ impl<'a, T> Pos for RingBits<'a, T> {
 
 impl<'a, T: RingSize> RingBits<'a, T> {
     #[inline(always)]
-    unsafe fn pop(&mut self, n: usize) -> usize {
-        self.idx -= n as u32;
+    unsafe fn pop(&mut self, n: u32) -> usize {
+        self.idx -= n;
         let index = self.idx % T::RING_SIZE;
         debug_assert!(n <= 8);
         self.view.ring_ptr.add(index as usize).cast::<usize>().read_unaligned().to_le()
@@ -42,19 +42,20 @@ impl<'a, T: RingSize> RingBits<'a, T> {
 
 impl<'a, T: RingSize> BitSrc for RingBits<'a, T> {
     #[inline(always)]
-    fn pop_bytes(&mut self, n_bytes: NPopBytes) -> usize {
+    unsafe fn pop_bytes(&mut self, n_bytes: usize) -> usize {
+        debug_assert!(n_bytes < mem::size_of::<usize>());
         debug_assert_ne!(self.idx, self.view.tail);
-        unsafe { self.pop(n_bytes.get()) }
+        self.pop(n_bytes as u32)
     }
 
     fn init_1(&mut self) -> usize {
         self.idx = self.view.tail;
-        unsafe { (self.pop(mem::size_of::<usize>() - 1) << 8) >> 8 }
+        unsafe { (self.pop(mem::size_of::<usize>() as u32 - 1) << 8) >> 8 }
     }
 
     fn init_0(&mut self) -> usize {
         self.idx = self.view.tail;
-        unsafe { self.pop(mem::size_of::<usize>()) }
+        unsafe { self.pop(mem::size_of::<usize>() as u32) }
     }
 }
 
@@ -100,17 +101,17 @@ mod tests {
         let mut bs = RingBits::new(view);
         assert_eq!(bs.init_0(), 0x3837363534333231);
         assert_eq!(bs.len(), 24);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(0)) & 0x0000000000000000, 0x0000000000000000);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(7)) & 0x00FFFFFFFFFFFFFF, 0x00504F4E4D4C4B4A);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(5)) & 0x000000FFFFFFFFFF, 0x0000004948474645);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(3)) & 0x0000000000FFFFFF, 0x0000000000444342);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(1)) & 0x00000000000000FF, 0x0000000000000041);
+        assert_eq!(unsafe{bs.pop_bytes(0)} & 0x0000000000000000, 0x0000000000000000);
+        assert_eq!(unsafe{bs.pop_bytes(7)} & 0x00FFFFFFFFFFFFFF, 0x00504F4E4D4C4B4A);
+        assert_eq!(unsafe{bs.pop_bytes(5)} & 0x000000FFFFFFFFFF, 0x0000004948474645);
+        assert_eq!(unsafe{bs.pop_bytes(3)} & 0x0000000000FFFFFF, 0x0000000000444342);
+        assert_eq!(unsafe{bs.pop_bytes(1)} & 0x00000000000000FF, 0x0000000000000041);
         assert_eq!(bs.len(), 8);
-        bs.pop_bytes(NPopBytes::new(7));
+        unsafe{bs.pop_bytes(7)};
         assert_eq!(bs.len(), 1);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe{bs.pop_bytes(1)};
         assert_eq!(bs.len(), 0);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe{bs.pop_bytes(1)};
         assert_eq!(bs.len(), 0);
     }
 
@@ -128,17 +129,17 @@ mod tests {
         let mut bs = RingBits::new(view);
         assert_eq!(bs.init_1(), 0x0037363534333231);
         assert_eq!(bs.len(), 24);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(0)) & 0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(7)) & 0x00FF_FFFF_FFFF_FFFF, 0x0050_4F4E_4D4C_4B4A);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(5)) & 0x0000_00FF_FFFF_FFFF, 0x0000_0049_4847_4645);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(3)) & 0x0000_0000_00FF_FFFF, 0x0000_0000_0044_4342);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(1)) & 0x0000_0000_0000_00FF, 0x0000_0000_0000_0041);
+        assert_eq!(unsafe{bs.pop_bytes(0)} & 0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
+        assert_eq!(unsafe{bs.pop_bytes(7)} & 0x00FF_FFFF_FFFF_FFFF, 0x0050_4F4E_4D4C_4B4A);
+        assert_eq!(unsafe{bs.pop_bytes(5)} & 0x0000_00FF_FFFF_FFFF, 0x0000_0049_4847_4645);
+        assert_eq!(unsafe{bs.pop_bytes(3)} & 0x0000_0000_00FF_FFFF, 0x0000_0000_0044_4342);
+        assert_eq!(unsafe{bs.pop_bytes(1)} & 0x0000_0000_0000_00FF, 0x0000_0000_0000_0041);
         assert_eq!(bs.len(), 8);
-        bs.pop_bytes(NPopBytes::new(7));
+        unsafe{bs.pop_bytes(7)};
         assert_eq!(bs.len(), 1);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe{bs.pop_bytes(1)};
         assert_eq!(bs.len(), 0);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe{bs.pop_bytes(1)};
         assert_eq!(bs.len(), 0);
     }
 
@@ -155,17 +156,17 @@ mod tests {
         let mut bs = RingBits::new(view);
         assert_eq!(bs.init_1(), 0x00333231);
         assert_eq!(bs.len(), 12);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(0)) & 0x0000_0000, 0x0000_0000);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(3)) & 0x00FF_FFFF, 0x0044_4342);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(1)) & 0x0000_00FF, 0x0000_0041);
+        assert_eq!(unsafe { bs.pop_bytes(0) } & 0x0000_0000, 0x0000_0000);
+        assert_eq!(unsafe { bs.pop_bytes(3) } & 0x00FF_FFFF, 0x0044_4342);
+        assert_eq!(unsafe { bs.pop_bytes(1) } & 0x0000_00FF, 0x0000_0041);
         assert_eq!(bs.len(), 8);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 5);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 2);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 0);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe { bs.pop_bytes(1) };
         assert_eq!(bs.len(), 0);
     }
 
@@ -182,17 +183,17 @@ mod tests {
         let mut bs = RingBits::new(view);
         assert_eq!(bs.init_0(), 0x34333231);
         assert_eq!(bs.len(), 12);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(0)) & 0x0000_0000, 0x0000_0000);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(3)) & 0x00FF_FFFF, 0x0044_4342);
-        assert_eq!(bs.pop_bytes(NPopBytes::new(1)) & 0x0000_00FF, 0x0000_0041);
+        assert_eq!(unsafe { bs.pop_bytes(0) } & 0x0000_0000, 0x0000_0000);
+        assert_eq!(unsafe { bs.pop_bytes(3) } & 0x00FF_FFFF, 0x0044_4342);
+        assert_eq!(unsafe { bs.pop_bytes(1) } & 0x0000_00FF, 0x0000_0041);
         assert_eq!(bs.len(), 8);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 5);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 2);
-        bs.pop_bytes(NPopBytes::new(3));
+        unsafe { bs.pop_bytes(3) };
         assert_eq!(bs.len(), 0);
-        bs.pop_bytes(NPopBytes::new(1));
+        unsafe { bs.pop_bytes(1) };
         assert_eq!(bs.len(), 0);
     }
 }

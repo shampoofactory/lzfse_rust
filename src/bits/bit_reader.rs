@@ -1,7 +1,7 @@
 use crate::Error;
 
 use super::accum::{Accum, ACCUM_MAX};
-use super::bit_src::{BitSrc, NPopBytes};
+use super::bit_src::BitSrc;
 
 use std::mem;
 
@@ -61,8 +61,8 @@ impl<T: BitSrc> BitReader<T> {
         let n_bits = n_bytes * 8;
         self.accum.u <<= n_bits;
         debug_assert!(n_bytes < mem::size_of::<usize>());
-        self.accum.u |= self.inner.pop_bytes(unsafe { NPopBytes::new_unchecked(n_bytes) })
-            & unsafe { MASK.get_unchecked(n_bytes) };
+        self.accum.u |=
+            unsafe { self.inner.pop_bytes(n_bytes) } & unsafe { MASK.get_unchecked(n_bytes) };
         self.accum.bits += n_bits as isize;
         debug_assert!(0 <= self.accum.bits);
         debug_assert!(self.accum.bits <= ACCUM_MAX);
