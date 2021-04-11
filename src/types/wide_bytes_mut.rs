@@ -21,6 +21,9 @@ impl<'a> WideBytesMut<'a> {
         Self::from_raw_parts(bytes.as_mut_ptr(), len)
     }
 
+    /// # Safety
+    ///
+    /// `ptr` is valid for `len + WIDE` byte reads and writes.
     #[inline(always)]
     pub unsafe fn from_raw_parts(ptr: *mut u8, len: usize) -> Self {
         Self(slice::from_raw_parts_mut(ptr, len))

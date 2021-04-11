@@ -20,6 +20,9 @@ impl<'a> WideBytes<'a> {
         Self::from_raw_parts(bytes.as_ptr(), len)
     }
 
+    /// # Safety
+    ///
+    /// `ptr` is valid for `len + WIDE` byte reads.
     #[inline(always)]
     pub unsafe fn from_raw_parts(ptr: *const u8, len: usize) -> Self {
         Self(slice::from_raw_parts(ptr, len))

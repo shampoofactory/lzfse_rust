@@ -24,6 +24,10 @@ impl<'a, T: ShortLimit, W: Width> ShortBytes<'a, T, W> {
         Self::from_raw_parts(bytes.as_ptr(), len)
     }
 
+    /// # Safety
+    ///
+    /// `len <= T::SHORT_LIMIT`
+    /// `ptr` is valid for `len + WIDE` byte reads.
     #[inline(always)]
     pub unsafe fn from_raw_parts(ptr: *const u8, len: usize) -> Self {
         debug_assert!(len <= T::SHORT_LIMIT as usize);
