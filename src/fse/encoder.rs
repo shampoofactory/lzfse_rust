@@ -195,7 +195,7 @@ impl Default for EEntry {
 
 impl EEntry {
     #[inline(always)]
-    unsafe fn encode<T: BitDst>(self, writer: &mut BitWriter<T>, state: &mut u32) {
+    pub unsafe fn encode<T: BitDst>(self, writer: &mut BitWriter<T>, state: &mut u32) {
         let s = *state;
         let n_bits = (self.t_k as i32 + s as i32) as u32 >> 10;
         *state = (self.t_w as i32 + ((s as i32) >> n_bits)) as u32;
@@ -223,7 +223,7 @@ const MASK_TABLE: [u32; 11] = [
 #[allow(arithmetic_overflow)]
 #[allow(clippy::needless_range_loop)]
 #[inline(always)]
-fn build_e_table(weights: &[u16], n_states: u32, table: &mut [EEntry]) {
+pub fn build_e_table(weights: &[u16], n_states: u32, table: &mut [EEntry]) {
     assert_eq!(weights.len(), table.len());
     assert!(n_states.is_power_of_two());
     assert!(n_states <= 1024);

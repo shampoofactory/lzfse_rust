@@ -32,11 +32,11 @@ pub struct FseBlock {
 }
 
 impl FseBlock {
-    pub fn new(n_raw_bytes: u32, literals: LiteralParam, lmds: LmdParam) -> crate::Result<Self> {
-        if n_raw_bytes > n_raw_bytes_limit(literals.num(), lmds.num()) {
+    pub fn new(n_raw_bytes: u32, literal: LiteralParam, lmd: LmdParam) -> crate::Result<Self> {
+        if n_raw_bytes > n_raw_bytes_limit(literal.num(), lmd.num()) {
             Err(FseErrorKind::BadRawByteCount.into())
         } else {
-            Ok(Self { literal: literals, lmd: lmds, n_raw_bytes })
+            Ok(Self { literal, lmd, n_raw_bytes })
         }
     }
 

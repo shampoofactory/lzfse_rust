@@ -9,6 +9,7 @@ const DECODE_F: usize = 4;
 // Encode output estimation
 const ENCODE_F: usize = 1;
 
+/// Test monkey.
 pub struct Monkey {
     decoder: LzfseRingDecoder,
     encoder: LzfseRingEncoder,

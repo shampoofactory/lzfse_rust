@@ -178,7 +178,7 @@ pub struct UEntry {
 
 impl UEntry {
     #[inline(always)]
-    unsafe fn decode<T: BitSrc>(self, reader: &mut BitReader<T>, state: &mut usize) -> u8 {
+    pub unsafe fn decode<T: BitSrc>(self, reader: &mut BitReader<T>, state: &mut usize) -> u8 {
         *state = (reader.pull(self.k as usize) as isize + self.delta as isize) as usize;
         self.symbol
     }
@@ -193,7 +193,12 @@ impl Default for UEntry {
 
 #[allow(arithmetic_overflow)]
 #[allow(clippy::needless_range_loop)]
-fn build_v_table(weights: &[u16], v_bits_table: &[u8], v_base_table: &[u32], table: &mut [VEntry]) {
+pub fn build_v_table(
+    weights: &[u16],
+    v_bits_table: &[u8],
+    v_base_table: &[u32],
+    table: &mut [VEntry],
+) {
     assert_eq!(v_bits_table.len(), weights.len());
     assert_eq!(v_base_table.len(), weights.len());
     let n_states = table.len() as u32;
@@ -232,7 +237,7 @@ fn build_v_table(weights: &[u16], v_bits_table: &[u8], v_base_table: &[u32], tab
 
 #[allow(arithmetic_overflow)]
 #[allow(clippy::needless_range_loop)]
-fn build_u_table(weights: &[u16], table: &mut [UEntry]) {
+pub fn build_u_table(weights: &[u16], table: &mut [UEntry]) {
     let n_states = table.len() as u32;
     assert!(n_states.is_power_of_two());
     let n_clz = n_states.leading_zeros();

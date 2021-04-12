@@ -175,3 +175,181 @@ impl Default for Literals {
         Self(vec![0u8; BUF_LEN].into_boxed_slice(), 0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::bits::ByteBits;
+    use crate::fse::Weights;
+
+    use test_kit::{Rng, Seq};
+
+    use super::*;
+
+    /// Test buddy.
+    struct Buddy {
+        weights: Weights,
+        encoder: Encoder,
+        decoder: Decoder,
+        src: Literals,
+        dst: Literals,
+        param: LiteralParam,
+        enc: Vec<u8>,
+        n_literals: usize,
+    }
+
+    impl Buddy {
+        #[allow(dead_code)]
+        pub fn push(&mut self, mut literals: &[u8]) {
+            self.src.reset();
+            self.n_literals = literals.len();
+            assert!(self.n_literals <= LITERALS_PER_BLOCK as usize);
+            unsafe { self.src.push_unchecked(&mut literals, self.n_literals as u32) }
+            assert_eq!(literals.len(), 0);
+        }
+
+        fn encode(&mut self) -> io::Result<()> {
+            let u = self.weights.load(&[], self.src.as_ref());
+            self.src.pad_u(u);
+            self.encoder.init(&self.weights);
+            self.enc.clear();
+            self.enc.resize(8, 0);
+            self.param = self.src.store(&mut self.enc, &self.encoder)?;
+            assert_eq!(self.enc.len(), 8 + self.param.n_payload_bytes() as usize);
+            Ok(())
+        }
+
+        fn decode(&mut self) -> io::Result<()> {
+            self.decoder.init(&self.weights);
+            self.dst.load(ByteBits::new(&self.enc), &self.decoder, &self.param)?;
+            Ok(())
+        }
+
+        fn check(&self) -> bool {
+            assert!(self.n_literals as usize <= self.src.len());
+            assert!(self.n_literals as usize <= self.dst.len());
+            self.src.as_ref()[..self.n_literals] == self.dst.as_ref()[..self.n_literals]
+        }
+
+        fn check_encode_decode(&mut self, literals: &[u8]) -> io::Result<bool> {
+            self.push(literals);
+            self.encode()?;
+            self.decode()?;
+            Ok(self.check())
+        }
+    }
+
+    impl Default for Buddy {
+        fn default() -> Self {
+            Self {
+                weights: Weights::default(),
+                encoder: Encoder::default(),
+                decoder: Decoder::default(),
+                src: Literals::default(),
+                dst: Literals::default(),
+                param: LiteralParam::default(),
+                enc: Vec::default(),
+                n_literals: 0,
+            }
+        }
+    }
+
+    #[test]
+    fn empty() -> io::Result<()> {
+        let mut buddy = Buddy::default();
+        assert!(buddy.check_encode_decode(&[])?);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "expensive"]
+    fn incremental() -> io::Result<()> {
+        let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize + 1).collect::<Vec<_>>();
+        let mut buddy = Buddy::default();
+        for literal_len in 1..bytes.len() {
+            assert!(buddy.check_encode_decode(&bytes[..literal_len])?);
+        }
+        Ok(())
+    }
+
+    // Random literals.
+    #[test]
+    #[ignore = "expensive"]
+    fn rng_1() -> io::Result<()> {
+        let mut bytes = vec![0; LITERALS_PER_BLOCK as usize];
+        let mut buddy = Buddy::default();
+        for literal_len in 0..bytes.len() {
+            bytes.clear();
+            Seq::new(Rng::new(literal_len as u32)).take(literal_len).for_each(|u| bytes.push(u));
+            assert!(buddy.check_encode_decode(&bytes[..literal_len])?);
+        }
+        Ok(())
+    }
+
+    // Random literals, incremental entropy.
+    #[test]
+    #[ignore = "expensive"]
+    fn rng_2() -> io::Result<()> {
+        let mut bytes = vec![0; 0x1000];
+        let mut buddy = Buddy::default();
+        for entropy in 0..0xFF {
+            let mask = entropy * 0x0101_0101;
+            for literal_len in 0..bytes.len() {
+                bytes.clear();
+                Seq::masked(Rng::new(literal_len as u32), mask)
+                    .take(literal_len)
+                    .for_each(|u| bytes.push(u));
+                assert!(buddy.check_encode_decode(&bytes[..literal_len])?);
+            }
+        }
+        Ok(())
+    }
+
+    // Bitwise mutation. We are looking to break the decoder. In all cases the
+    // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
+    // segfault/ panic/ trip debug assertions or break in a any other fashion.
+    #[test]
+    #[ignore = "expensive"]
+    fn mutate_1() -> io::Result<()> {
+        let mut buddy = Buddy::default();
+        let mut bytes = Vec::default();
+        for seed in 0..0x0100 {
+            bytes.clear();
+            Seq::new(Rng::new(seed)).take(0x1000).for_each(|u| bytes.push(u));
+            assert!(buddy.check_encode_decode(&bytes)?);
+            for index in 0..buddy.enc.len() {
+                for n_bit in 0..8 {
+                    let bit = 1 << n_bit;
+                    buddy.enc[index] ^= bit;
+                    let _ = buddy.decode();
+                    buddy.enc[index] ^= bit;
+                }
+            }
+            assert!(buddy.check_encode_decode(&bytes)?);
+        }
+        Ok(())
+    }
+
+    // Byte mutation. We are looking to break the decoder. In all cases the
+    // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
+    // segfault/ panic/ trip debug assertions or break in a any other fashion.
+    #[test]
+    #[ignore = "expensive"]
+    fn mutate_2() -> io::Result<()> {
+        let mut buddy = Buddy::default();
+        let mut bytes = Vec::default();
+        for seed in 0..0x0100 {
+            bytes.clear();
+            Seq::new(Rng::new(seed)).take(0x0100).for_each(|u| bytes.push(u));
+            assert!(buddy.check_encode_decode(&bytes)?);
+            for index in 0..buddy.enc.len() {
+                for byte in 0..=0xFF {
+                    buddy.enc[index] ^= byte;
+                    let _ = buddy.decode();
+                    buddy.enc[index] ^= byte;
+                }
+            }
+            assert!(buddy.check_encode_decode(&bytes)?);
+        }
+        Ok(())
+    }
+}

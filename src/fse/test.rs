@@ -1,334 +1,576 @@
+use crate::base::MagicBytes;
 use crate::bits::ByteBits;
+use crate::error::Error;
+use crate::lmd::{self, Lmd};
 use crate::lmd::{LiteralLenPack, LmdPack, MatchDistancePack, MatchLenPack};
+use crate::ops::{PatchInto, Skip, WriteShort};
+use crate::test_utils;
+use crate::types::{Idx, ShortBuffer};
 
-use test_kit::Rng;
+use test_kit::{Rng, Seq};
 
-use super::constants::*;
+use super::block::{FseBlock, LiteralParam, LmdParam};
 use super::decoder::Decoder;
 use super::encoder::Encoder;
+use super::fse_core::FseCore;
 use super::literals::Literals;
 use super::lmds::Lmds;
 use super::weights::Weights;
 use super::Fse;
+use super::{constants::*, FseBackend};
 
-use std::io::Write;
+use std::io::{self, Write};
 
-fn literal_encode_decode_check(
-    mut data: &[u8],
-    literals: &mut Literals,
-    weights: &mut Weights,
-    encoder: &mut Encoder,
-    decoder: &mut Decoder,
-    store: &mut Vec<u8>,
-) -> crate::Result<()> {
-    assert!(data.len() <= LITERALS_PER_BLOCK as usize);
+// Block level tests.
 
-    let data_len = data.len();
-    literals.reset();
-    unsafe { literals.push_unchecked(&mut data, data_len as u32) };
-
-    let u = weights.load(&[], literals.as_ref());
-    literals.pad_u(u);
-    encoder.init(&weights);
-
-    store.clear();
-    store.write_all(&[0; 8])?;
-    let param = literals.store(store, &encoder)?;
-
-    literals.reset();
-    decoder.init(&weights);
-
-    let src = ByteBits::new(store.as_slice());
-    literals.load(src, &decoder, &param)?;
-
-    assert_eq!(data, &literals.as_ref()[..data.len()]);
-    Ok(())
+/// Test buddy.
+struct Buddy {
+    backend: FseBackend,
+    core: FseCore,
+    enc: Vec<u8>,
+    dec: Vec<u8>,
 }
 
-fn lmds_encode_decode_check(
-    data: &[LmdPack<Fse>],
-    lmds: &mut Lmds,
-    weights: &mut Weights,
-    encoder: &mut Encoder,
-    decoder: &mut Decoder,
-    store: &mut Vec<u8>,
-) -> crate::Result<()> {
-    assert!(data.len() <= LMDS_PER_BLOCK as usize);
+impl Buddy {
+    fn encode_lmds(&mut self, literals: &[u8], lmds: &[Lmd<Fse>]) -> io::Result<(u32, u32)> {
+        test_utils::encode_lmds(&mut self.enc, &mut self.backend, literals, lmds)
+    }
 
-    lmds.reset();
-    data.iter().for_each(|&lmd| unsafe { lmds.push_unchecked(lmd) });
+    fn decode(&mut self) -> crate::Result<(u32, u32)> {
+        self.dec.clear();
+        let mut src = self.enc.as_slice();
+        let n_header_bytes = self.core.load_v2(src)?;
+        src.skip(n_header_bytes as usize);
+        let n_literal_bytes = self.core.load_literals(src)?;
+        src.skip(n_literal_bytes as usize);
+        let n_lmd_bytes = self.core.decode(&mut self.dec, src)?;
+        src.skip(n_lmd_bytes as usize);
+        let n_raw_bytes = self.dec.len() as u32;
+        Ok((n_header_bytes + n_literal_bytes + n_lmd_bytes, n_raw_bytes))
+    }
 
-    let _ = weights.load(lmds.as_ref(), &[]);
-    encoder.init(&weights);
+    fn decode_n(&mut self, n: u32) -> crate::Result<(u32, u32)> {
+        self.dec.clear();
+        let mut src = self.enc.as_slice();
+        let n_header_bytes = self.core.load_v2(src)?;
+        src.skip(n_header_bytes as usize);
+        let n_literal_bytes = self.core.load_literals(src)?;
+        src.skip(n_literal_bytes as usize);
+        let n_lmd_bytes = self.core.load_lmds(src)?;
+        src.skip(n_lmd_bytes as usize);
+        self.core.decode_n_init(&self.dec);
+        while self.core.decode_n(&mut self.dec, n)? {}
+        let n_raw_bytes = self.dec.len() as u32;
+        Ok((n_header_bytes + n_literal_bytes + n_lmd_bytes, n_raw_bytes))
+    }
 
-    store.clear();
-    store.write_all(&[0; 8])?;
-    let param = lmds.store(store, &encoder)?;
+    fn check_encode_decode(&mut self, literals: &[u8], lmds: &[Lmd<Fse>]) -> crate::Result<bool> {
+        let (e_raw_bytes, e_payload_bytes) = self.encode_lmds(literals, lmds)?;
+        let (d_payload_bytes, d_raw_bytes) = self.decode()?;
+        Ok(e_raw_bytes == d_raw_bytes
+            && e_payload_bytes == d_payload_bytes
+            && self.check_lmds(literals, lmds))
+    }
 
-    lmds.reset();
-    decoder.init(&weights);
+    fn check_encode_decode_n(
+        &mut self,
+        literals: &[u8],
+        lmds: &[Lmd<Fse>],
+        n: u32,
+    ) -> crate::Result<bool> {
+        let (e_raw_bytes, e_payload_bytes) = self.encode_lmds(literals, lmds)?;
+        let (d_payload_bytes, d_raw_bytes) = self.decode_n(n)?;
+        Ok(e_raw_bytes == d_raw_bytes
+            && e_payload_bytes == d_payload_bytes
+            && self.check_lmds(literals, lmds))
+    }
 
-    let src = ByteBits::new(store.as_slice());
-    lmds.load(src, &decoder, &param)?;
+    fn check_lmds(&self, literals: &[u8], lmds: &[Lmd<Fse>]) -> bool {
+        test_utils::check_lmds(&self.dec, literals, lmds)
+    }
 
-    assert_eq!(data, &lmds.as_ref()[..data.len()]);
-    Ok(())
+    fn mutate_n_raw_bytes(&mut self, delta: i32) -> crate::Result<bool> {
+        let mut block = FseBlock::default();
+        let (n_header_bytes, n_weight_payload_bytes) =
+            block.load_v2_short(self.enc.as_slice().short_bytes())?;
+        let n_raw_bytes = (block.n_raw_bytes() as i32 + delta) as u32;
+        let literal = *block.literal();
+        let lmd = *block.lmd();
+        if let Ok(block) = FseBlock::new(n_raw_bytes, literal, lmd) {
+            let bytes = self.enc.patch_into(Idx::default(), n_header_bytes as usize);
+            block.store_v2(bytes, n_weight_payload_bytes);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn mutate_v2_literal_n_payload_bytes(&mut self, delta: i32) -> crate::Result<bool> {
+        let mut block = FseBlock::default();
+        let (n_header_bytes, n_weight_payload_bytes) =
+            block.load_v2_short(self.enc.as_slice().short_bytes())?;
+        let n_raw_bytes = block.n_raw_bytes();
+        let literal = *block.literal();
+        if let Ok(literal) = LiteralParam::new(
+            literal.num(),
+            (literal.n_payload_bytes() as i32 + delta) as u32,
+            literal.bits(),
+            *literal.state(),
+        ) {
+            let lmd = *block.lmd();
+            if let Ok(block) = FseBlock::new(n_raw_bytes, literal, lmd) {
+                let bytes = self.enc.patch_into(Idx::default(), n_header_bytes as usize);
+                block.store_v2(bytes, n_weight_payload_bytes);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn mutate_v2_lmd_n_payload_bytes(&mut self, delta: i32) -> crate::Result<bool> {
+        let mut block = FseBlock::default();
+        let (n_header_bytes, n_weight_payload_bytes) =
+            block.load_v2_short(self.enc.as_slice().short_bytes())?;
+        let n_raw_bytes = block.n_raw_bytes();
+        let lmd = *block.lmd();
+        if let Ok(lmd) = LmdParam::new(
+            lmd.num(),
+            (lmd.n_payload_bytes() as i32 + delta) as u32,
+            lmd.bits(),
+            *lmd.state(),
+        ) {
+            let literal = *block.literal();
+            if let Ok(block) = FseBlock::new(n_raw_bytes, literal, lmd) {
+                let bytes = self.enc.patch_into(Idx::default(), n_header_bytes as usize);
+                block.store_v2(bytes, n_weight_payload_bytes);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(false)
+        }
+    }
 }
 
+impl Default for Buddy {
+    fn default() -> Self {
+        Self {
+            backend: FseBackend::default(),
+            core: FseCore::default(),
+            enc: Vec::default(),
+            dec: Vec::default(),
+        }
+    }
+}
+
+// Quote.
 #[test]
-fn literal_encode_decode() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-
-    let data = b"Full fathom five thy father lies; \
+fn quote() -> crate::Result<()> {
+    let bytes = b"Full fathom five thy father lies; \
                  Of his bones are coral made; \
                  Those are pearls that were his eyes: \
                  Nothing of him that doth fade; \
                  But doth suffer a sea-change; \
                  Into something rich and strange."; // William Shakespeare. The Tempest.
-
-    literal_encode_decode_check(
-        data,
-        &mut literals,
-        &mut weights,
-        &mut encoder,
-        &mut decoder,
-        &mut store,
-    )
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    lmd::split_lmd(&mut lmds, bytes.len() as u32, 0, 1);
+    assert!(buddy.check_encode_decode(bytes.as_ref(), &lmds)?);
+    Ok(())
 }
 
+// Incremental literal len.
 #[test]
 #[ignore = "expensive"]
-fn literal_encode_decode_rng() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let mut data = Vec::default();
-    for seed in 0..4096 {
-        data.clear();
-        Rng::new(seed).take(LITERALS_PER_BLOCK as usize).for_each(|u| data.push(u as u8));
-        literal_encode_decode_check(
-            &data,
-            &mut literals,
-            &mut weights,
-            &mut encoder,
-            &mut decoder,
-            &mut store,
-        )?;
+fn literals() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        assert!(buddy.check_encode_decode(&bytes[..literal_len], &lmds)?);
     }
     Ok(())
 }
 
+// Small literal len, match len and match distance.
 #[test]
 #[ignore = "expensive"]
-fn literal_encode_decode_len() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let mut data = Vec::default();
-    for n in 0..4096 {
-        data.clear();
-        Rng::default().take(n).for_each(|u| data.push(u as u8));
-        literal_encode_decode_check(
-            &data,
-            &mut literals,
-            &mut weights,
-            &mut encoder,
-            &mut decoder,
-            &mut store,
-        )?;
-    }
-    Ok(())
-}
-
-#[test]
-fn literal_encode_decode_seq() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-
-    let data = (0..255).collect::<Vec<_>>();
-
-    literal_encode_decode_check(
-        data.as_ref(),
-        &mut literals,
-        &mut weights,
-        &mut encoder,
-        &mut decoder,
-        &mut store,
-    )
-}
-
-#[test]
-#[ignore = "expensive"]
-fn literal_encode_decode_twin_interleave_balanced() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let mut data = Vec::default();
-    for i in 0..U_STATES as usize {
-        for j in 0..U_STATES as usize {
-            data.clear();
-            data.resize(data.len() + 4 * i, 0);
-            data.resize(data.len() + 4 * j, 1);
-            if i < j {
-                data.resize(data.len() + 4 * (j - i), 0);
-            } else {
-                data.resize(data.len() + 4 * (i - j), 1);
-            };
-            literal_encode_decode_check(
-                data.as_slice(),
-                &mut literals,
-                &mut weights,
-                &mut encoder,
-                &mut decoder,
-                &mut store,
-            )?;
+fn matches_1() -> crate::Result<()> {
+    let bytes = Seq::default().take(0x0100).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        for match_len in 3..literal_len as u32 {
+            for match_distance in 1..literal_len as u32 {
+                lmds.clear();
+                lmd::split_lmd(&mut lmds, literal_len as u32, match_len, match_distance);
+                assert!(buddy.check_encode_decode(&bytes[..literal_len], &lmds)?);
+            }
         }
     }
     Ok(())
 }
 
+// Small match len, all match distance.
 #[test]
 #[ignore = "expensive"]
-fn literal_encode_decode_twin_interleave() -> crate::Result<()> {
-    let mut literals = Literals::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let mut data = Vec::default();
-    for i in 0..U_STATES as usize {
-        for j in 0..U_STATES as usize {
-            data.clear();
-            data.resize(data.len() + 4 * i, 0);
-            data.resize(data.len() + 4 * j, 1);
-            literal_encode_decode_check(
-                data.as_slice(),
-                &mut literals,
-                &mut weights,
-                &mut encoder,
-                &mut decoder,
-                &mut store,
-            )?;
+fn matches_2() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for match_len in 3..0x10 {
+        for match_distance in 1..bytes.len() {
+            let literal_len = match_distance;
+            lmds.clear();
+            lmd::split_lmd(&mut lmds, literal_len as u32, match_len, match_distance as u32);
+            assert!(buddy.check_encode_decode(&bytes[..literal_len], &lmds)?);
         }
     }
     Ok(())
 }
 
-#[test]
-fn lmd_encode_decode() -> crate::Result<()> {
-    let mut lmds = Lmds::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let data = unsafe {
-        [
-            LmdPack::<Fse>::new_unchecked(128, 1, 256),
-            LmdPack::<Fse>::new_unchecked(128, 0, 0),
-            LmdPack::<Fse>::new_unchecked(256, 128, 1),
-            LmdPack::<Fse>::new_unchecked(256, 128, 0),
-            LmdPack::<Fse>::new_unchecked(0, 128, 1),
-            LmdPack::<Fse>::new_unchecked(0, 128, 0),
-        ]
-    };
-    lmds_encode_decode_check(&data, &mut lmds, &mut weights, &mut encoder, &mut decoder, &mut store)
-}
-
+// Coarse match len, all match distance.
 #[test]
 #[ignore = "expensive"]
-fn lmd_encode_decode_rng() -> crate::Result<()> {
-    let mut lmds = Lmds::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let mut data = Vec::default();
-    for seed in 0..4096 {
-        let mut rng = Rng::new(seed);
-        data.clear();
-        for _ in 0..LMDS_PER_BLOCK {
-            let l = (rng.gen() as u64 * MAX_L_VALUE as u64) >> 32;
-            let m = (rng.gen() as u64 * MAX_M_VALUE as u64) >> 32;
-            let d = (rng.gen() as u64 * MAX_D_VALUE as u64) >> 32;
-            let lmd = unsafe { LmdPack::new_unchecked(l as u16, m as u16, d as u32) };
-            data.push(lmd);
+fn matches_3() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for match_len in (0x10..0x100).step_by(0x10) {
+        for match_distance in 1..bytes.len() {
+            let literal_len = match_distance;
+            lmds.clear();
+            lmd::split_lmd(&mut lmds, literal_len as u32, match_len, match_distance as u32);
+            assert!(buddy.check_encode_decode(&bytes[..literal_len], &lmds)?);
         }
-        lmds_encode_decode_check(
-            &data,
-            &mut lmds,
-            &mut weights,
-            &mut encoder,
-            &mut decoder,
-            &mut store,
-        )?;
     }
     Ok(())
 }
 
+// Coarse match len, all match distance.
 #[test]
 #[ignore = "expensive"]
-fn l_encode_decode_seq() -> crate::Result<()> {
-    let mut lmds = Lmds::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let data = (0..=MAX_L_VALUE)
-        .map(|u| LiteralLenPack::new(u as u16))
-        .map(|u| LmdPack(u, MatchLenPack::default(), MatchDistancePack::default()))
-        .collect::<Vec<_>>();
-    lmds_encode_decode_check(&data, &mut lmds, &mut weights, &mut encoder, &mut decoder, &mut store)
+fn matches_4() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for match_len in (0x100..0x1000).step_by(0x100) {
+        for match_distance in 1..bytes.len() {
+            let literal_len = match_distance;
+            lmds.clear();
+            lmd::split_lmd(&mut lmds, literal_len as u32, match_len, match_distance as u32);
+            assert!(buddy.check_encode_decode(&bytes[..literal_len], &lmds)?);
+        }
+    }
+    Ok(())
 }
 
+// Random LMD generation.
 #[test]
 #[ignore = "expensive"]
-fn m_encode_decode_seq() -> crate::Result<()> {
-    let mut lmds = Lmds::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let data = (0..=MAX_M_VALUE)
-        .map(|u| MatchLenPack::new(u as u16))
-        .map(|u| LmdPack(LiteralLenPack::default(), u, MatchDistancePack::default()))
-        .collect::<Vec<_>>();
-    lmds_encode_decode_check(&data, &mut lmds, &mut weights, &mut encoder, &mut decoder, &mut store)
+fn fuzz_lmd() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for i in 0..0x8000 {
+        let mut rng = Rng::new(i);
+        lmds.clear();
+        lmds.push(Lmd::new(1, 0, 1));
+        let mut index = 1;
+        let mut n_raw_bytes = index as u32;
+        loop {
+            let l = ((rng.gen() & 0x0000_FFFF) * (MAX_L_VALUE as u32 + 1)) >> 16;
+            let m = ((rng.gen() & 0x0000_FFFF) * (MAX_M_VALUE as u32 + 1)) >> 16;
+            let d = ((rng.gen() & 0x0000_0FFF) * (MAX_D_VALUE as u32 + 1)) >> 12;
+            if bytes.len() < index + l as usize || lmds.len() == LMDS_PER_BLOCK as usize {
+                break;
+            }
+            let m = m.max(3);
+            let d = d.min(n_raw_bytes).max(1);
+            lmds.push(Lmd::new(l, m, d));
+            index += l as usize;
+            n_raw_bytes += m;
+        }
+        assert!(buddy.check_encode_decode(&bytes[..index as usize], &lmds)?);
+    }
+    Ok(())
 }
 
+// Random LMD generation with n decoding.
 #[test]
 #[ignore = "expensive"]
-fn d_encode_decode_seq() -> crate::Result<()> {
-    let mut lmds = Lmds::default();
-    let mut weights = Weights::default();
-    let mut encoder = Encoder::default();
-    let mut decoder = Decoder::default();
-    let mut store = Vec::default();
-    let data = (0..=MAX_D_VALUE)
-        .map(MatchDistancePack::new)
-        .map(|u| LmdPack(LiteralLenPack::default(), MatchLenPack::default(), u))
-        .collect::<Vec<_>>();
-    for chunk in data.chunks(LMDS_PER_BLOCK as usize) {
-        lmds_encode_decode_check(
-            chunk,
-            &mut lmds,
-            &mut weights,
-            &mut encoder,
-            &mut decoder,
-            &mut store,
-        )?;
+fn fuzz_lmd_n() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for i in 0..0x8000 {
+        let mut rng = Rng::new(i);
+        lmds.clear();
+        lmds.push(Lmd::new(1, 0, 1));
+        let mut index = 1;
+        let mut n_raw_bytes = index as u32;
+        loop {
+            let l = ((rng.gen() & 0x0000_FFFF) * (MAX_L_VALUE as u32 + 1)) >> 16;
+            let m = ((rng.gen() & 0x0000_FFFF) * (MAX_M_VALUE as u32 + 1)) >> 16;
+            let d = ((rng.gen() & 0x0000_0FFF) * (MAX_D_VALUE as u32 + 1)) >> 12;
+            if bytes.len() < index + l as usize || lmds.len() == LMDS_PER_BLOCK as usize {
+                break;
+            }
+            let m = m.max(3);
+            let d = d.min(n_raw_bytes).max(1);
+            lmds.push(Lmd::new(l, m, d));
+            index += l as usize;
+            n_raw_bytes += m;
+        }
+        assert!(buddy.check_encode_decode_n(&bytes[..index as usize], &lmds, 1 + i)?);
+    }
+    Ok(())
+}
+
+// Mutate `literal.n_payload_bytes` +1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_1() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_v2_lmd_n_payload_bytes(1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(_) => {}
+            Ok(_) => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Mutate `literal.n_payload_bytes` -1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_2() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_v2_lmd_n_payload_bytes(-1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(_) => {}
+            Ok(_) => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Mutate `literal.n_payload_bytes` +1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_3() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_v2_literal_n_payload_bytes(1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(_) => {}
+            Ok(_) => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Mutate `literal.n_payload_bytes` -1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_4() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_v2_literal_n_payload_bytes(-1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(_) => {}
+            Ok(_) => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Mutate `n_raw_bytes` +1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_5() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_n_raw_bytes(1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(Error::Fse(super::FseErrorKind::BadLmdPayload)) => {}
+            _ => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Mutate `n_raw_bytes` -1. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn edge_6() -> crate::Result<()> {
+    let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for literal_len in 1..bytes.len() {
+        lmds.clear();
+        lmd::split_lmd(&mut lmds, literal_len as u32, 0, 1);
+        buddy.encode_lmds(&bytes[..literal_len], &lmds)?;
+        if !buddy.mutate_n_raw_bytes(-1)? {
+            continue;
+        }
+        match buddy.decode() {
+            Err(Error::Fse(super::FseErrorKind::BadLmdPayload)) => {}
+            _ => panic!(),
+        }
+    }
+    Ok(())
+}
+
+// Random payload generation with mutations. We are looking to break the decoder. In all cases the
+// decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
+// segfault/ panic/ trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn mutate_rng_1() -> crate::Result<()> {
+    let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for i in 0..0x0200 {
+        let mut rng = Rng::new(i);
+        lmds.clear();
+        lmds.push(Lmd::new(1, 0, 1));
+        let mut index = 1;
+        let mut n_raw_bytes = index as u32;
+        loop {
+            let l = ((rng.gen() & 0x0000_FFFF) * (MAX_L_VALUE as u32 + 1)) >> 16;
+            let m = ((rng.gen() & 0x0000_FFFF) * (MAX_M_VALUE as u32 + 1)) >> 16;
+            let d = ((rng.gen() & 0x0000_0FFF) * (MAX_D_VALUE as u32 + 1)) >> 12;
+            if bytes.len() < index + l as usize {
+                break;
+            }
+            let m = m.max(3);
+            let d = d.min(n_raw_bytes).max(1);
+            lmds.push(Lmd::new(l, m, d));
+            index += l as usize;
+            n_raw_bytes += m;
+        }
+        buddy.encode_lmds(&bytes[..index as usize], &lmds)?;
+        for j in 4..buddy.enc.len() {
+            buddy.enc[j] = buddy.enc[j].wrapping_add(1);
+            let _ = buddy.decode();
+            buddy.enc[j] = buddy.enc[j].wrapping_sub(2);
+            let _ = buddy.decode();
+            buddy.enc[j] = buddy.enc[j].wrapping_add(1);
+        }
+    }
+    Ok(())
+}
+
+// Random payload generation with mutations. We are looking to break the decoder. In all cases the
+// decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
+// segfault/ panic/ trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn mutate_rng_2() -> crate::Result<()> {
+    let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
+    let mut buddy = Buddy::default();
+    let mut lmds = Vec::default();
+    for i in 0..0x0200 {
+        let mut rng = Rng::new(i);
+        lmds.clear();
+        lmds.push(Lmd::new(1, 0, 1));
+        let mut index = 1;
+        let mut n_raw_bytes = index as u32;
+        loop {
+            let l = ((rng.gen() & 0x0000_FFFF) * (MAX_L_VALUE as u32 + 1)) >> 16;
+            let m = ((rng.gen() & 0x0000_FFFF) * (MAX_M_VALUE as u32 + 1)) >> 16;
+            let d = ((rng.gen() & 0x0000_0FFF) * (MAX_D_VALUE as u32 + 1)) >> 12;
+            if bytes.len() < index + l as usize {
+                break;
+            }
+            let m = m.max(3);
+            let d = d.min(n_raw_bytes).max(1);
+            lmds.push(Lmd::new(l, m, d));
+            index += l as usize;
+            n_raw_bytes += m;
+        }
+        buddy.encode_lmds(&bytes[..index as usize], &lmds)?;
+        for _ in 0..255 {
+            for j in 4..buddy.enc.len() {
+                buddy.enc[j] = buddy.enc[j].wrapping_add(1);
+                let _ = buddy.decode();
+            }
+        }
+    }
+    Ok(())
+}
+
+// Random noise for payload. We are looking to break the decoder. In all cases the decoder should
+// reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
+// trip debug assertions or break in a any other fashion.
+#[test]
+#[ignore = "expensive"]
+fn fuzz_noise() -> crate::Result<()> {
+    let mut buddy = Buddy::default();
+    for i in 0..0x0100_0000 {
+        let mut seq = Seq::new(Rng::new(i));
+        buddy.enc.write_short_u32(MagicBytes::Vx2.into())?;
+        buddy.enc.resize(0x400, 0);
+        for i in 0x0004..0x0400 {
+            buddy.enc[i] = seq.next().unwrap();
+        }
+        let _ = buddy.decode();
     }
     Ok(())
 }

@@ -15,6 +15,8 @@ mod weights;
 
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod test_fse;
 
 pub use backend::FseBackend;
 pub use buffer::Buffer;

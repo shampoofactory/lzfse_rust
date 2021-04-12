@@ -213,7 +213,7 @@ fn reset_weights(weights: &mut [u16]) {
     weights.iter_mut().for_each(|u| *u = 0);
 }
 
-fn normalize_m1(weights: &mut [u16], in_total: u32, out_total: u32) -> usize {
+pub fn normalize_m1(weights: &mut [u16], in_total: u32, out_total: u32) -> usize {
     assert!(out_total.is_power_of_two());
     assert!(out_total <= 0x4000_0000);
     assert!(weights.len() <= out_total as usize);
