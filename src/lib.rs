@@ -132,6 +132,9 @@ mod ring;
 mod types;
 mod vn;
 
+#[cfg(test)]
+pub mod test_utils;
+
 pub use decode::{decode_bytes, LzfseDecoder, LzfseReader, LzfseReaderBytes, LzfseRingDecoder};
 pub use encode::{encode_bytes, LzfseEncoder, LzfseRingEncoder, LzfseWriter, LzfseWriterBytes};
 pub use error::{Error, Result};
