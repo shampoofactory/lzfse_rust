@@ -104,7 +104,23 @@ impl Default for Monkey {
     }
 }
 
-// Literal encoding test.
+// Quote.
+#[test]
+fn quote() -> crate::Result<()> {
+    let bytes = b"Full fathom five thy father lies; \
+                 Of his bones are coral made; \
+                 Those are pearls that were his eyes: \
+                 Nothing of him that doth fade; \
+                 But doth suffer a sea-change; \
+                 Into something rich and strange."; // William Shakespeare. The Tempest.
+    let mut monkey = Monkey::default();
+    let mut lmds = Vec::default();
+    lmd::split_lmd(&mut lmds, bytes.len() as u32, 0, 1);
+    assert!(monkey.check_encode_decode(bytes.as_ref(), &lmds)?);
+    Ok(())
+}
+
+// Incremental literal len.
 #[test]
 #[ignore = "expensive"]
 fn literals() -> crate::Result<()> {
