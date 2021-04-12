@@ -39,35 +39,34 @@ pub struct Ring<'a, T>(*mut u8, PhantomData<T>, PhantomData<&'a mut ()>);
 impl<'a, T: RingType> Ring<'a, T> {
     /// May overmatch `max` by  `overmatch_len(len)` bytes
     #[inline(always)]
-    pub fn coarse_match_inc(&self, idxs: (Idx, Idx), len: usize, max: usize) -> usize {
-        assert!(overmatch_len(len) <= T::RING_LIMIT as usize);
-        debug_assert!(self.head_shadowed_len(overmatch_len(len)));
+    pub fn coarse_match_inc<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
+        assert!(overmatch_len(LEN) <= T::RING_LIMIT as usize);
+        debug_assert!(self.head_shadowed_len(overmatch_len(LEN)));
         let indexes = (
             (usize::from(idxs.0)) % T::RING_SIZE as usize,
             (usize::from(idxs.1)) % T::RING_SIZE as usize,
         );
-        let u_0 = unsafe { self.0.add(indexes.0 + len).cast::<usize>().read_unaligned() };
-        let u_1 = unsafe { self.0.add(indexes.1 + len).cast::<usize>().read_unaligned() };
+        let u_0 = unsafe { self.0.add(indexes.0 + LEN).cast::<usize>().read_unaligned() };
+        let u_1 = unsafe { self.0.add(indexes.1 + LEN).cast::<usize>().read_unaligned() };
         let x = u_0 ^ u_1;
         if x != 0 {
             // Likely
-            len + match_kit::nclz_bytes(x) as usize
+            LEN + match_kit::nclz_bytes(x) as usize
         } else {
             // Unlikely.
-            unsafe { self.coarse_match_inc_cont(indexes, len + mem::size_of::<usize>(), max) }
+            unsafe { self.coarse_match_inc_cont::<LEN>(indexes, max) }
         }
     }
 
-    unsafe fn coarse_match_inc_cont(
+    unsafe fn coarse_match_inc_cont<const LEN: usize>(
         &self,
         mut indexes: (usize, usize),
-        mut len: usize,
         max: usize,
     ) -> usize {
-        let base_len = len;
+        let mut len = LEN + mem::size_of::<usize>();
         loop {
             for i in 0..4 {
-                let off = base_len + i * mem::size_of::<usize>();
+                let off = LEN + mem::size_of::<usize>() + i * mem::size_of::<usize>();
                 let u_0 = self.0.add(indexes.0 + off).cast::<usize>().read_unaligned();
                 let u_1 = self.0.add(indexes.1 + off).cast::<usize>().read_unaligned();
                 let x = u_0 ^ u_1;

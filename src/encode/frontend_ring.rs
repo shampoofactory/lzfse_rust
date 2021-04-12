@@ -530,7 +530,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         debug_assert!(item.idx < self.tail);
         let len = M::match_us((item.u, match_item.u));
         if len == 4 {
-            self.ring.coarse_match_inc((item.idx, match_item.idx), 4, max as usize) as u32
+            self.ring.coarse_match_inc::<4>((item.idx, match_item.idx), max as usize) as u32
         } else {
             len
         }
