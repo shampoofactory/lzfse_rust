@@ -3,7 +3,7 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
-            use crate::monkey::Monkey;
+            use crate::buddy::Buddy;
             use crate::ops;
 
             use test_kit::Seq;
@@ -15,12 +15,12 @@ macro_rules! test_pattern {
             fn encode_decode_0() -> io::Result<()> {
                 let mut vec = Vec::with_capacity(0x0008_0200);
                 Seq::default().take(0x0400).for_each(|u| vec.push(u));
-                let mut monkey = Monkey::default();
+                let mut buddy = Buddy::default();
                 for u in (1..0x0400).rev() {
                     let i = vec.len();
                     vec.resize(i + u, 0);
                     vec.copy_within(i - u..i, i);
-                    monkey.encode_decode(&vec, $encoder)?;
+                    buddy.encode_decode(&vec, $encoder)?;
                 }
                 Ok(())
             }

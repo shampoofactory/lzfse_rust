@@ -14,7 +14,7 @@ const RAW_HASH: &[u8] = include_bytes!("../../data/mutate/raw.hash");
 macro_rules! test_mutate {
     ($name:ident, $data:ident, $hash:ident) => {
         mod $name {
-            use crate::monkey::Monkey;
+            use crate::buddy::Buddy;
             use crate::ops;
 
             use lzfse_rust::LzfseRingDecoder;
@@ -25,17 +25,17 @@ macro_rules! test_mutate {
             where
                 F: Fn(&mut LzfseRingDecoder, &[u8], &mut Vec<u8>) -> io::Result<()>,
             {
-                let mut monkey = Monkey::default();
+                let mut buddy = Buddy::default();
                 let mut data = data.to_vec();
                 for index in 0..data.len() {
                     for n_bit in 0..8 {
                         let bit = 1 << n_bit;
                         data[index] ^= bit;
-                        let _ = monkey.blind_decode(&data, &decode);
+                        let _ = buddy.blind_decode(&data, &decode);
                         data[index] ^= bit;
                     }
                 }
-                monkey.decode_hash(&data, hash, ops::decode)
+                buddy.decode_hash(&data, hash, ops::decode)
             }
 
             #[test]

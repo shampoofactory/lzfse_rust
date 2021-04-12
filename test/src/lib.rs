@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod buddy;
+#[cfg(test)]
 mod data;
 #[cfg(test)]
 mod fuzz_read;
@@ -8,8 +10,6 @@ mod fuzz_write;
 mod huge;
 #[cfg(test)]
 mod len;
-#[cfg(test)]
-mod monkey;
 #[cfg(test)]
 mod mutate_0;
 #[cfg(test)]

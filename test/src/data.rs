@@ -33,49 +33,49 @@ const CORPUS_ENWIK8_HASH: &[u8] = include_bytes!("../../data/large/enwik8.hash")
 macro_rules! test_codec {
     ($name:ident, $data:ident, $hash:ident) => {
         mod $name {
-            use crate::monkey::Monkey;
+            use crate::buddy::Buddy;
             use crate::ops;
 
             use std::io;
 
             #[test]
             pub fn decode() -> io::Result<()> {
-                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode)
+                Buddy::default().decode_hash(super::$data, super::$hash, ops::decode)
             }
 
             #[test]
             pub fn decode_bytes() -> io::Result<()> {
-                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_bytes)
+                Buddy::default().decode_hash(super::$data, super::$hash, ops::decode_bytes)
             }
 
             #[test]
             pub fn decode_reader() -> io::Result<()> {
-                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_reader)
+                Buddy::default().decode_hash(super::$data, super::$hash, ops::decode_reader)
             }
 
             #[test]
             pub fn decode_reader_bytes() -> io::Result<()> {
-                Monkey::default().decode_hash(super::$data, super::$hash, ops::decode_reader_bytes)
+                Buddy::default().decode_hash(super::$data, super::$hash, ops::decode_reader_bytes)
             }
 
             #[test]
             pub fn encode() -> io::Result<()> {
-                Monkey::default().decode_encode_decode(super::$data, ops::encode)
+                Buddy::default().decode_encode_decode(super::$data, ops::encode)
             }
 
             #[test]
             pub fn encode_bytes() -> io::Result<()> {
-                Monkey::default().decode_encode_decode(super::$data, ops::encode_bytes)
+                Buddy::default().decode_encode_decode(super::$data, ops::encode_bytes)
             }
 
             #[test]
             pub fn encode_writer() -> io::Result<()> {
-                Monkey::default().decode_encode_decode(super::$data, ops::encode_writer)
+                Buddy::default().decode_encode_decode(super::$data, ops::encode_writer)
             }
 
             #[test]
             pub fn encode_writer_bytes() -> io::Result<()> {
-                Monkey::default().decode_encode_decode(super::$data, ops::encode_writer_bytes)
+                Buddy::default().decode_encode_decode(super::$data, ops::encode_writer_bytes)
             }
         }
     };

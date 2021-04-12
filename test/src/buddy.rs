@@ -9,8 +9,8 @@ const DECODE_F: usize = 4;
 // Encode output estimation
 const ENCODE_F: usize = 1;
 
-/// Test monkey.
-pub struct Monkey {
+/// Test buddy.
+pub struct Buddy {
     decoder: LzfseRingDecoder,
     encoder: LzfseRingEncoder,
     data: Vec<u8>,
@@ -18,7 +18,7 @@ pub struct Monkey {
     dec: Vec<u8>,
 }
 
-impl Monkey {
+impl Buddy {
     pub fn blind_decode<F>(&mut self, enc: &[u8], decode: F) -> io::Result<()>
     where
         F: Fn(&mut LzfseRingDecoder, &[u8], &mut Vec<u8>) -> io::Result<()>,
@@ -114,7 +114,7 @@ impl Monkey {
     }
 }
 
-impl Default for Monkey {
+impl Default for Buddy {
     fn default() -> Self {
         Self {
             decoder: LzfseRingDecoder::default(),

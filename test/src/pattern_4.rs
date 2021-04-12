@@ -3,7 +3,7 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
-            use crate::monkey::Monkey;
+            use crate::buddy::Buddy;
             use crate::ops;
 
             use test_kit::Useq;
@@ -13,7 +13,7 @@ macro_rules! test_pattern {
             #[test]
             fn encode_decode_0() -> io::Result<()> {
                 let vec = Useq::default().take(0x0010_0000).collect::<Vec<_>>();
-                Monkey::default().encode_decode(&vec, $encoder)?;
+                Buddy::default().encode_decode(&vec, $encoder)?;
                 Ok(())
             }
         }

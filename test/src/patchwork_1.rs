@@ -3,7 +3,7 @@
 macro_rules! test_pattern {
     ($name:ident, $encoder:expr) => {
         mod $name {
-            use crate::monkey::Monkey;
+            use crate::buddy::Buddy;
             use crate::ops;
 
             use test_kit::{Rng, Seq};
@@ -15,7 +15,7 @@ macro_rules! test_pattern {
             fn encode_decode_0() -> io::Result<()> {
                 let base = Iterator::take(Seq::default(), 0x0100).collect::<Vec<_>>();
                 let mut vec = Vec::with_capacity(0x1000);
-                let mut monkey = Monkey::default();
+                let mut buddy = Buddy::default();
                 for seed in 0..0x1000 {
                     let mut rng = Rng::new(seed);
                     vec.extend_from_slice(&base);
@@ -26,7 +26,7 @@ macro_rules! test_pattern {
                         vec.resize(top + len, 0);
                         vec.copy_within(off..off + len, top);
                     }
-                    monkey.encode_decode(&vec, $encoder)?;
+                    buddy.encode_decode(&vec, $encoder)?;
                     vec.clear();
                 }
                 Ok(())
@@ -37,7 +37,7 @@ macro_rules! test_pattern {
             fn encode_decode_1() -> io::Result<()> {
                 let base = Iterator::take(Seq::default(), 0x0100).collect::<Vec<_>>();
                 let mut vec = Vec::with_capacity(0x1000);
-                let mut monkey = Monkey::default();
+                let mut buddy = Buddy::default();
                 for seed in 0..0x1000 {
                     let mut rng = Rng::new(seed);
                     vec.extend_from_slice(&base);
@@ -48,7 +48,7 @@ macro_rules! test_pattern {
                         vec.resize(top + len, 0);
                         vec.copy_within(off..off + len, top);
                     }
-                    monkey.encode_decode(&vec, $encoder)?;
+                    buddy.encode_decode(&vec, $encoder)?;
                     vec.clear();
                 }
                 Ok(())
@@ -59,7 +59,7 @@ macro_rules! test_pattern {
             fn encode_decode_2() -> io::Result<()> {
                 let base = Iterator::take(Seq::default(), 0x0100).collect::<Vec<_>>();
                 let mut vec = Vec::with_capacity(0x1000);
-                let mut monkey = Monkey::default();
+                let mut buddy = Buddy::default();
                 for seed in 0..0x1000 {
                     let mut rng = Rng::new(seed);
                     vec.extend_from_slice(&base);
@@ -70,7 +70,7 @@ macro_rules! test_pattern {
                         vec.resize(top + len, 0);
                         vec.copy_within(off..off + len, top);
                     }
-                    monkey.encode_decode(&vec, $encoder)?;
+                    buddy.encode_decode(&vec, $encoder)?;
                     vec.clear();
                 }
                 Ok(())
