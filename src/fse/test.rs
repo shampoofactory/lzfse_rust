@@ -1,8 +1,6 @@
 use crate::base::MagicBytes;
-use crate::bits::ByteBits;
 use crate::error::Error;
 use crate::lmd::{self, Lmd};
-use crate::lmd::{LiteralLenPack, LmdPack, MatchDistancePack, MatchLenPack};
 use crate::ops::{PatchInto, Skip, WriteShort};
 use crate::test_utils;
 use crate::types::{Idx, ShortBuffer};
@@ -10,16 +8,11 @@ use crate::types::{Idx, ShortBuffer};
 use test_kit::{Rng, Seq};
 
 use super::block::{FseBlock, LiteralParam, LmdParam};
-use super::decoder::Decoder;
-use super::encoder::Encoder;
 use super::fse_core::FseCore;
-use super::literals::Literals;
-use super::lmds::Lmds;
-use super::weights::Weights;
 use super::Fse;
 use super::{constants::*, FseBackend};
 
-use std::io::{self, Write};
+use std::io::{self};
 
 // Block level tests.
 
