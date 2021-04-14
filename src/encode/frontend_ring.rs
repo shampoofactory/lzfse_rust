@@ -530,7 +530,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         debug_assert!(item.idx < self.tail);
         let len = M::match_us((item.u, match_item.u));
         if len == 4 {
-            self.ring.coarse_match_inc::<4>((item.idx, match_item.idx), max as usize) as u32
+            self.ring.match_inc_coarse::<4>((item.idx, match_item.idx), max as usize) as u32
         } else {
             len
         }
@@ -541,7 +541,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         debug_assert!(self.head <= match_idx);
         debug_assert!(match_idx < idx);
         debug_assert!(idx < self.tail);
-        self.ring.match_dec_coarse((idx, match_idx), 0, literal_len as usize) as u32
+        self.ring.match_dec_coarse::<0>((idx, match_idx), literal_len as usize) as u32
     }
 
     #[inline(always)]

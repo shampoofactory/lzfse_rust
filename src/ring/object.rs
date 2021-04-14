@@ -39,7 +39,7 @@ pub struct Ring<'a, T>(*mut u8, PhantomData<T>, PhantomData<&'a mut ()>);
 impl<'a, T: RingType> Ring<'a, T> {
     /// May overmatch `max` by  `overmatch_len(len)` bytes
     #[inline(always)]
-    pub fn coarse_match_inc<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
+    pub fn match_inc_coarse<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
         assert!(overmatch_len(LEN) <= T::RING_LIMIT as usize);
         debug_assert!(self.head_shadowed_len(overmatch_len(LEN)));
         let indexes = (
@@ -54,11 +54,11 @@ impl<'a, T: RingType> Ring<'a, T> {
             LEN + match_kit::nclz_bytes(x) as usize
         } else {
             // Unlikely.
-            unsafe { self.coarse_match_inc_cont::<LEN>(indexes, max) }
+            unsafe { self.match_inc_coarse_cont::<LEN>(indexes, max) }
         }
     }
 
-    unsafe fn coarse_match_inc_cont<const LEN: usize>(
+    unsafe fn match_inc_coarse_cont<const LEN: usize>(
         &self,
         mut indexes: (usize, usize),
         max: usize,
@@ -88,10 +88,10 @@ impl<'a, T: RingType> Ring<'a, T> {
 
     /// May overmatch `max` by  `overmatch_len(len)` bytes
     #[inline(always)]
-    pub fn match_dec_coarse(&self, idxs: (Idx, Idx), len: usize, max: usize) -> usize {
-        assert!(overmatch_len(len) <= T::RING_LIMIT as usize);
-        debug_assert!(self.head_shadowed_len(overmatch_len(len)));
-        let off = overmatch_len(len);
+    pub fn match_dec_coarse<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
+        assert!(overmatch_len(LEN) <= T::RING_LIMIT as usize);
+        debug_assert!(self.head_shadowed_len(overmatch_len(LEN)));
+        let off = overmatch_len(LEN);
         let indexes = (
             (usize::from(idxs.0).wrapping_sub(off)) % T::RING_SIZE as usize,
             (usize::from(idxs.1).wrapping_sub(off)) % T::RING_SIZE as usize,
@@ -102,19 +102,19 @@ impl<'a, T: RingType> Ring<'a, T> {
         let x = u_0 ^ u_1;
         if x != 0 {
             // Likely
-            len + match_kit::nctz_bytes(x) as usize
+            LEN + match_kit::nctz_bytes(x) as usize
         } else {
             // Unlikely.
-            unsafe { self.match_dec_cont(indexes, len + mem::size_of::<usize>(), max) }
+            unsafe { self.match_dec_cont::<LEN>(indexes, max) }
         }
     }
 
-    unsafe fn match_dec_cont(
+    unsafe fn match_dec_cont<const LEN: usize>(
         &self,
         mut indexes: (usize, usize),
-        mut len: usize,
         max: usize,
     ) -> usize {
+        let mut len = LEN + mem::size_of::<usize>();
         loop {
             for i in 0..4 {
                 let off = (3 - i) * mem::size_of::<usize>();
@@ -269,4 +269,142 @@ unsafe fn zone_eq<T: RingType>(ptr: *mut u8, len: usize) -> bool {
     let u = slice::from_raw_parts(ptr.add(T::RING_SIZE as usize), len);
     let v = slice::from_raw_parts(ptr, len);
     u == v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Copy, Clone, Debug)]
+    struct T;
+
+    unsafe impl RingSize for T {
+        const RING_SIZE: u32 = 0x0100;
+    }
+
+    unsafe impl RingType for T {
+        const RING_LIMIT: u32 = 0x0040;
+    }
+
+    // Cycling match_index, match_distance and match_len combinations.
+    #[test]
+    fn match_inc_1() {
+        let mut ring_box = RingBox::<T>::default();
+        let mut ring = Ring::from(&mut ring_box);
+        for match_index in 0x0000..0x0100 {
+            for match_distance in 0x0001..0x0100 {
+                ring.fill(0xFF);
+                for n in 0..match_distance {
+                    ring[(match_index + n) % 0x0100] = (n + 1) as u8;
+                }
+                let index = match_index + match_distance;
+                for match_len in 0..0x0100 - match_distance {
+                    ring.head_copy_out();
+                    ring.tail_copy_out();
+                    let n = ring.match_inc_coarse::<0>(
+                        (Idx::new(index as u32), Idx::new(match_index as u32)),
+                        0x100,
+                    );
+                    assert_eq!(n, match_len);
+                    ring[(index + match_len) % 0x0100] = (match_len % match_distance + 1) as u8;
+                }
+            }
+        }
+    }
+
+    // Cycling match_index, match_distance combinations with overmatch limit checking.
+    #[test]
+    fn match_inc_2() {
+        let mut ring_box = RingBox::<T>::default();
+        let mut ring = Ring::from(&mut ring_box);
+        for match_index in 0x0000..0x0100 {
+            for match_distance in 0x0001..0x0100 {
+                ring.fill(0xFF);
+                for n in 0..match_distance {
+                    ring[(match_index + n) % 0x0100] = (n + 1) as u8;
+                }
+                let index = match_index + match_distance;
+                for match_len in 0..0x0100 - match_distance {
+                    ring[(index + match_len) % 0x0100] = (match_len % match_distance + 1) as u8;
+                }
+                ring.head_copy_out();
+                ring.tail_copy_out();
+                let match_len = 0x0100 - match_distance;
+                let n = ring.match_inc_coarse::<0>(
+                    (Idx::new(index as u32), Idx::new(match_index as u32)),
+                    0,
+                );
+                assert!(n <= match_len);
+                assert!(n <= overmatch_len(0));
+                let n = ring.match_inc_coarse::<4>(
+                    (Idx::new(index as u32), Idx::new(match_index as u32)),
+                    0,
+                );
+                assert!(n <= match_len + 4);
+                assert!(n <= overmatch_len(4));
+            }
+        }
+    }
+
+    // Cycling match_index, match_distance and match_len combinations.
+    #[test]
+    fn match_dec_1() {
+        let mut ring_box = RingBox::<T>::default();
+        let mut ring = Ring::from(&mut ring_box);
+        for match_index in 0x0000..0x0100usize {
+            for match_distance in 0x0001..0x0100 {
+                ring.fill(0xFF);
+                for n in 1..=match_distance {
+                    ring[(match_index.wrapping_sub(n)) % 0x0100] = n as u8;
+                }
+                let index = match_index.wrapping_sub(match_distance);
+                for match_len in 0..0x0100 - match_distance {
+                    ring.head_copy_out();
+                    ring.tail_copy_out();
+                    let n = ring.match_dec_coarse::<0>(
+                        (Idx::new(index as u32), Idx::new(match_index as u32)),
+                        0x100,
+                    );
+                    assert_eq!(n, match_len);
+                    ring[index.wrapping_sub(match_len + 1) % 0x0100] =
+                        (match_len % match_distance + 1) as u8;
+                }
+            }
+        }
+    }
+
+    // Cycling match_index, match_distance combinations with overmatch limit checking.
+    #[test]
+    fn match_dec_2() {
+        let mut ring_box = RingBox::<T>::default();
+        let mut ring = Ring::from(&mut ring_box);
+        for match_index in 0x0000..0x0100usize {
+            for match_distance in 0x0001..0x0100 {
+                ring.fill(0xFF);
+                for n in 1..=match_distance {
+                    ring[(match_index.wrapping_sub(n)) % 0x0100] = n as u8;
+                }
+                let index = match_index.wrapping_sub(match_distance);
+                for match_len in 0..0x0100 - match_distance {
+                    ring[index.wrapping_sub(match_len + 1) % 0x0100] =
+                        (match_len % match_distance + 1) as u8;
+                }
+                ring.head_copy_out();
+                ring.tail_copy_out();
+                let match_len = 0x0100 - match_distance;
+                let n = ring.match_dec_coarse::<0>(
+                    (Idx::new(index as u32), Idx::new(match_index as u32)),
+                    0,
+                );
+                assert!(n <= match_len);
+                assert!(n <= overmatch_len(0));
+                let n = ring.match_dec_coarse::<4>(
+                    (Idx::new(index as u32), Idx::new(match_index as u32)),
+                    0,
+                );
+                assert!(n <= match_len + 4);
+                assert!(n <= overmatch_len(4));
+            }
+        }
+    }
 }
