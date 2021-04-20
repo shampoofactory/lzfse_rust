@@ -215,7 +215,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
 
     #[inline(always)]
     unsafe fn write_block_len(&mut self, src: &mut &[u8], index: usize, len: usize) {
-        self.ring.get_unchecked_mut(index..index + len).copy_from_slice(src);
+        self.ring.get_unchecked_mut(index..index + len).copy_from_slice(src.get_unchecked(..len));
         self.tail += len as u32;
         *src = src.get_unchecked(len..);
     }
