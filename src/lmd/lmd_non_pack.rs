@@ -1,7 +1,9 @@
 use super::lmd_type::LmdMax;
 use super::lmd_type::*;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+use std::fmt;
+
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Lmd<T: LmdMax>(pub LiteralLen<T>, pub MatchLen<T>, pub MatchDistance<T>);
 
 impl<T: LmdMax> Lmd<T> {
@@ -29,5 +31,15 @@ impl<T: LmdMax> Default for Lmd<T> {
     #[inline(always)]
     fn default() -> Self {
         Self(LiteralLen::default(), MatchLen::default(), MatchDistance::default())
+    }
+}
+
+impl<T: LmdMax> fmt::Debug for Lmd<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("Lmd")
+            .field(&self.0.get())
+            .field(&self.1.get())
+            .field(&self.2.get())
+            .finish()
     }
 }

@@ -1,6 +1,6 @@
 use crate::types::Idx;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Match {
     pub idx: Idx,
     pub match_idx: Idx,

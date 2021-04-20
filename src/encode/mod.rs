@@ -11,6 +11,9 @@ mod ring_encoder;
 mod writer;
 mod writer_bytes;
 
+#[cfg(test)]
+mod dummy;
+
 pub use backend::Backend;
 pub use backend_type::BackendType;
 pub use encoder::LzfseEncoder;
