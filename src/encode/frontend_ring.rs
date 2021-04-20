@@ -587,7 +587,10 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
 
     fn is_init(&self) -> bool {
         let zero = Idx::default();
-        self.is_uncommitted() && self.tail == zero && self.mark == zero + T::RING_BLK_SIZE
+        self.is_uncommitted()
+            && self.tail == zero
+            && self.mark == zero + T::RING_BLK_SIZE
+            && self.n_raw_bytes == 0
     }
 
     fn is_uncommitted(&self) -> bool {
@@ -597,7 +600,6 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             && self.head == zero
             && self.literal_idx == zero
             && self.idx == zero
-            && self.n_raw_bytes == 0
     }
 
     fn is_long(&self) -> bool {
