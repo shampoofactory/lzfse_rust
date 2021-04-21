@@ -204,7 +204,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         *src = src.get_unchecked(len..);
     }
 
-    #[inline(always)]
+    // #[inline(always)]
     fn match_block<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
