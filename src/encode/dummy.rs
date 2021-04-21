@@ -1,5 +1,6 @@
 use crate::encode::{Backend, BackendType, MatchUnit};
 use crate::lmd::{DMax, LMax, Lmd, LmdMax, MMax, MatchDistance};
+use crate::lz::LzWriter;
 use crate::ops::WriteLong;
 use crate::types::{ShortBuffer, ShortWriter};
 
@@ -67,6 +68,19 @@ impl BackendType for Dummy {}
 pub struct DummyBackend {
     pub literals: Vec<u8>,
     pub lmds: Vec<Lmd<Dummy>>,
+}
+
+impl DummyBackend {
+    pub fn decode<W: LzWriter>(&self, dst: &mut W) -> crate::Result<()> {
+        let mut index = 0;
+        for &lmd in self.lmds.iter() {
+            let literal_len = lmd.0.get() as usize;
+            dst.write_bytes_long(&self.literals[index..index + literal_len])?;
+            dst.write_match(lmd.1, lmd.2.into())?;
+            index += literal_len;
+        }
+        Ok(())
+    }
 }
 
 impl Backend for DummyBackend {

@@ -12,10 +12,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::slice;
 
-#[inline(always)]
-pub const fn overmatch_len(len: usize) -> usize {
-    len + 5 * mem::size_of::<usize>()
-}
+pub const OVERMATCH_LEN: usize = 5 * mem::size_of::<usize>();
 
 pub struct Ring<'a, T>(*mut u8, PhantomData<T>, PhantomData<&'a mut ()>);
 
@@ -37,11 +34,11 @@ pub struct Ring<'a, T>(*mut u8, PhantomData<T>, PhantomData<&'a mut ()>);
 // S    | Slack          | WIDTH
 
 impl<'a, T: RingType> Ring<'a, T> {
-    /// May overmatch `max` by  `overmatch_len(len)` bytes
+    /// May overmatch `max` by  `LEN + OVERMATCH_LEN` bytes
     #[inline(always)]
     pub fn match_inc_coarse<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
-        assert!(overmatch_len(LEN) <= T::RING_LIMIT as usize);
-        debug_assert!(self.head_shadowed_len(overmatch_len(LEN)));
+        assert!(LEN + OVERMATCH_LEN <= T::RING_LIMIT as usize);
+        debug_assert!(self.head_shadowed_len(LEN + OVERMATCH_LEN));
         let indexes = (
             (usize::from(idxs.0)) % T::RING_SIZE as usize,
             (usize::from(idxs.1)) % T::RING_SIZE as usize,
@@ -86,12 +83,12 @@ impl<'a, T: RingType> Ring<'a, T> {
         max
     }
 
-    /// May overmatch `max` by  `overmatch_len(len)` bytes
+    /// May overmatch `max` by  `LEN + OVERMATCH_LEN` bytes
     #[inline(always)]
     pub fn match_dec_coarse<const LEN: usize>(&self, idxs: (Idx, Idx), max: usize) -> usize {
-        assert!(overmatch_len(LEN) <= T::RING_LIMIT as usize);
-        debug_assert!(self.head_shadowed_len(overmatch_len(LEN)));
-        let off = overmatch_len(LEN);
+        assert!(LEN + OVERMATCH_LEN <= T::RING_LIMIT as usize);
+        debug_assert!(self.head_shadowed_len(LEN + OVERMATCH_LEN));
+        let off = LEN + OVERMATCH_LEN;
         let indexes = (
             (usize::from(idxs.0).wrapping_sub(off)) % T::RING_SIZE as usize,
             (usize::from(idxs.1).wrapping_sub(off)) % T::RING_SIZE as usize,
@@ -335,13 +332,13 @@ mod tests {
                     0,
                 );
                 assert!(n <= match_len);
-                assert!(n <= overmatch_len(0));
+                assert!(n <= OVERMATCH_LEN);
                 let n = ring.match_inc_coarse::<4>(
                     (Idx::new(index as u32), Idx::new(match_index as u32)),
                     0,
                 );
                 assert!(n <= match_len + 4);
-                assert!(n <= overmatch_len(4));
+                assert!(n <= 4 + OVERMATCH_LEN);
             }
         }
     }
@@ -397,13 +394,13 @@ mod tests {
                     0,
                 );
                 assert!(n <= match_len);
-                assert!(n <= overmatch_len(0));
+                assert!(n <= OVERMATCH_LEN);
                 let n = ring.match_dec_coarse::<4>(
                     (Idx::new(index as u32), Idx::new(match_index as u32)),
                     0,
                 );
                 assert!(n <= match_len + 4);
-                assert!(n <= overmatch_len(4));
+                assert!(n <= 4 + OVERMATCH_LEN);
             }
         }
     }

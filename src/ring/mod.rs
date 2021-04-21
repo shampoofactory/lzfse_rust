@@ -9,7 +9,7 @@ mod ring_size;
 mod ring_type;
 mod ring_view;
 
-pub use object::{overmatch_len, Ring};
+pub use object::{Ring, OVERMATCH_LEN};
 pub use ring_bits::RingBits;
 pub use ring_block::RingBlock;
 pub use ring_box::RingBox;

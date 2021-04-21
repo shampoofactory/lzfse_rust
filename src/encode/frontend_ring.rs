@@ -17,29 +17,13 @@ use super::match_unit::MatchUnit;
 
 use std::io::{self, Read};
 
+const OVERMATCH_LEN: u32 = 4 + ring::OVERMATCH_LEN as u32;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Commit {
     Fse,
     Vn,
     None,
-}
-
-trait Flush {
-    const FLUSH: bool;
-}
-
-#[derive(Copy, Clone)]
-struct FlushTrue;
-
-impl Flush for FlushTrue {
-    const FLUSH: bool = true;
-}
-
-#[derive(Copy, Clone)]
-struct FlushFalse;
-
-impl Flush for FlushFalse {
-    const FLUSH: bool = false;
 }
 
 pub struct FrontendRing<'a, T> {
@@ -122,7 +106,7 @@ pub struct FrontendRing<'a, T> {
 
 impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     // Non flush max match len that doesn't overshoot our tail.
-    const MAX_MATCH_LEN: u32 = T::RING_SIZE / 2 - T::RING_BLK_SIZE - ring::overmatch_len(4) as u32;
+    const MAX_MATCH_LEN: u32 = T::RING_SIZE / 2 - T::RING_BLK_SIZE - OVERMATCH_LEN;
 
     pub fn new(ring: Ring<'a, T>, table: &'a mut HistoryTable) -> Self {
         assert!(T::RING_BLK_SIZE.is_power_of_two());
@@ -131,7 +115,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         assert!(T::RING_SIZE <= CLAMP_INTERVAL / 4);
         assert!(0x100 < T::RING_BLK_SIZE as usize);
         assert!(T::RING_BLK_SIZE <= T::RING_SIZE / 4);
-        assert!(ring::overmatch_len(4) < T::RING_LIMIT as usize);
+        assert!(OVERMATCH_LEN < T::RING_LIMIT);
         let zero = Idx::default();
         Self {
             table,
@@ -234,7 +218,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         }
         self.commit(backend, dst, Commit::Fse)?;
         self.match_long(backend, dst)?;
-        self.advance_head();
+        self.reposition_head();
         self.push_literal_overflow(backend, dst)?;
         self.clamp();
         self.mark = self.tail + T::RING_BLK_SIZE;
@@ -256,7 +240,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     #[inline(always)]
-    fn advance_head(&mut self) {
+    fn reposition_head(&mut self) {
         let delta = (self.idx - self.head) as u32;
         let delta = (delta - T::RING_SIZE / 2) / T::RING_BLK_SIZE * T::RING_BLK_SIZE;
         self.head += delta;
@@ -297,8 +281,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             }
             Commit::None => self.flush_select(backend, dst)?,
         };
-        debug_assert!(self.validate_clamp());
-        debug_assert_eq!(self.literal_idx, self.tail);
+        debug_assert!(self.is_done());
         // Eos.
         dst.write_short_u32(MagicBytes::Eos.into())?;
         Ok(())
@@ -312,23 +295,37 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         let len = (self.tail - self.idx) as u32;
         if len > VN_CUTOFF {
             self.commit = Commit::Fse;
-            backend.init(dst, Some(len))?;
-            self.finalize(backend, dst)?;
+            self.flush_backend(backend, dst)
+        } else if len > RAW_CUTOFF {
+            self.commit = Commit::Vn;
+            self.flush_backend(&mut BackendVn::default(), dst)
+        } else {
+            self.flush_raw(dst)
+        }
+    }
+
+    fn flush_backend<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        let mark = dst.pos();
+        let len = (self.tail - self.idx) as u32;
+        backend.init(dst, Some(len))?;
+        self.finalize(backend, dst)?;
+        let dst_len = (dst.pos() - mark) as u32;
+        let src_len = (self.tail - Idx::default()) as u32;
+        if dst_len < src_len + RAW_HEADER_SIZE {
             return Ok(());
         }
-        if len > RAW_CUTOFF {
-            self.commit = Commit::Vn;
-            let mut backend = BackendVn::default();
-            backend.init(dst, Some(len))?;
-            let mark = dst.pos();
-            self.finalize(&mut backend, dst)?;
-            let dst_len = (dst.pos() - mark) as u32;
-            let src_len = (self.tail - Idx::default()) as u32;
-            if dst_len < src_len + RAW_HEADER_SIZE {
-                return Ok(());
-            }
-            dst.truncate(mark);
-        }
+        dst.truncate(mark);
+        self.flush_raw(dst)
+    }
+
+    fn flush_raw<O>(&mut self, dst: &mut O) -> io::Result<()>
+    where
+        O: ShortWriter,
+    {
         let bytes = self.ring.view(self.head, self.tail);
         raw::raw_compress(dst, bytes)?;
         self.literal_idx = self.tail;
@@ -446,7 +443,8 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     where
         B: BackendType,
     {
-        debug_assert!(max >= B::MATCH_UNIT);
+        debug_assert!(B::MATCH_UNIT <= max);
+        debug_assert!(item.idx + max <= self.tail - if F { 0 } else { OVERMATCH_LEN });
         let mut m = Match::default();
         for &match_idx_val in queue.iter() {
             let distance = (item.idx - match_idx_val.idx) as u32;
@@ -625,6 +623,10 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         self.validate_global() && self.tail - 4 <= self.idx
     }
 
+    fn is_done(&self) -> bool {
+        self.validate_clamp() && self.literal_idx == self.tail
+    }
+
     fn validate_clamp(&self) -> bool {
         let delta = self.idx - self.clamp;
         -(CLAMP_INTERVAL as i32) <= delta && delta < CLAMP_INTERVAL as i32 / 2
@@ -668,12 +670,14 @@ impl<'a, T: RingType> AsMut<[u8]> for FrontendRing<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lmd::Lmd;
+    use crate::lmd::{LiteralLen, Lmd};
     use crate::ring::RingBox;
     use crate::ring::RingSize;
 
     use super::super::dummy::{Dummy, DummyBackend};
     use super::*;
+
+    use std::io;
 
     #[derive(Copy, Clone, Debug)]
     pub struct T;
@@ -698,7 +702,7 @@ mod tests {
         assert!(T::RING_SIZE <= CLAMP_INTERVAL / 4);
         assert!(0x100 < T::RING_BLK_SIZE as usize);
         assert!(T::RING_BLK_SIZE <= T::RING_SIZE / 4);
-        assert!(ring::overmatch_len(4) < T::RING_LIMIT as usize);
+        assert!(OVERMATCH_LEN < T::RING_LIMIT);
         let zero = Idx::default();
         FrontendRing {
             table,
@@ -715,10 +719,10 @@ mod tests {
         }
     }
 
-    // Zero, 3 invalid.
+    // Match short: zero bytes, length 3. Invalid.
     #[test]
     #[should_panic]
-    fn zero_3() {
+    fn match_short_zero_3() {
         let mut ring_box = RingBox::<T>::default();
         let mut table = HistoryTable::default();
         let mut frontend = build((&mut ring_box).into(), &mut table);
@@ -735,9 +739,9 @@ mod tests {
         frontend.match_short(&mut backend, &mut dst).unwrap();
     }
 
-    // Zero, 4.
+    // Match short: zero bytes, length 4. Lower limit.
     #[test]
-    fn zero_4() -> io::Result<()> {
+    fn match_short_zero_4() -> io::Result<()> {
         let mut ring_box = RingBox::<T>::default();
         let mut table = HistoryTable::default();
         let mut frontend = build((&mut ring_box).into(), &mut table);
@@ -764,9 +768,10 @@ mod tests {
         Ok(())
     }
 
-    // Zero short, incremental literals.
+    // Match short: zero bytes, length 5++.
     #[test]
-    fn zero_n_short() -> io::Result<()> {
+    #[ignore = "expensive"]
+    fn match_short_zero_n() -> io::Result<()> {
         let mut ring_box = RingBox::<T>::default();
         let mut table = HistoryTable::default();
         let mut frontend = build((&mut ring_box).into(), &mut table);
@@ -794,8 +799,43 @@ mod tests {
         Ok(())
     }
 
+    // Match long, zero bytes, check that overmatch limit doesn't breach tail.
+    #[test]
+    #[ignore = "expensive"]
+    fn match_long_overmatch_limit() -> io::Result<()> {
+        let mut ring_box = RingBox::<T>::default();
+        let mut table = HistoryTable::default();
+        let mut frontend = build((&mut ring_box).into(), &mut table);
+        let mut dst = Vec::default();
+        let mut backend = DummyBackend::default();
+        for offset in 0..T::RING_BLK_SIZE - 1 {
+            backend.init(&mut dst, None)?;
+            let base = Idx::default();
+            let idx = base + T::RING_SIZE / 2 + offset;
+            frontend.table.reset_idx(base - CLAMP_INTERVAL);
+            frontend.pending = Match::default();
+            frontend.literal_idx = idx;
+            frontend.idx = idx;
+            frontend.head = base;
+            frontend.tail = base + T::RING_SIZE;
+            frontend.mark = base + T::RING_SIZE;
+            frontend.match_long(&mut backend, &mut dst)?;
+            if frontend.pending.match_len != 0 {
+                unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
+            }
+            assert_eq!(backend.literals, []);
+            assert_eq!(backend.lmds.len(), 1);
+            assert_eq!(backend.lmds[0].0, LiteralLen::new(0));
+            assert!(idx + backend.lmds[0].1.get() <= frontend.tail);
+            assert_eq!(backend.lmds[0].2.get(), 1);
+            assert!(dst.is_empty());
+        }
+        Ok(())
+    }
+
     // Sandwich, incremental literals.
     #[test]
+    #[ignore = "expensive"]
     fn sandwich_n_short() -> io::Result<()> {
         let mut ring_box = RingBox::<T>::default();
         let mut table = HistoryTable::default();
