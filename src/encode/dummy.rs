@@ -71,6 +71,7 @@ pub struct DummyBackend {
 }
 
 impl DummyBackend {
+    #[allow(dead_code)]
     pub fn decode<W: LzWriter>(&self, dst: &mut W) -> crate::Result<()> {
         let mut index = 0;
         for &lmd in self.lmds.iter() {
