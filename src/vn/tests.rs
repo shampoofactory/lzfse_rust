@@ -365,10 +365,10 @@ fn edge_4() -> crate::Result<()> {
 #[test]
 #[ignore = "expensive"]
 fn mutate_rng_1() -> crate::Result<()> {
-    let bytes = Seq::default().take(0x0004_0000).collect::<Vec<_>>();
+    let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
     let mut lmds = Vec::default();
-    for i in 0..0x8000 {
+    for i in 0..0x1000 {
         let mut rng = Rng::new(i);
         lmds.clear();
         lmds.push(Lmd::new(1, 0, 1));
@@ -405,10 +405,10 @@ fn mutate_rng_1() -> crate::Result<()> {
 #[test]
 #[ignore = "expensive"]
 fn mutate_rng_2() -> crate::Result<()> {
-    let bytes = Seq::default().take(0x0004_0000).collect::<Vec<_>>();
+    let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
     let mut lmds = Vec::default();
-    for i in 0..0x8000 {
+    for i in 0..0x1000 {
         let mut rng = Rng::new(i);
         lmds.clear();
         lmds.push(Lmd::new(1, 0, 1));
