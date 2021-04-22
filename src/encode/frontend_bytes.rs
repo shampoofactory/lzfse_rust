@@ -1,7 +1,6 @@
 use crate::base::MagicBytes;
 use crate::error::Error;
 use crate::fse::FseBackend;
-use crate::lmd::DMax;
 use crate::lmd::MatchDistance;
 use crate::match_kit;
 use crate::raw::{self, RAW_HEADER_SIZE};
@@ -24,6 +23,11 @@ pub struct FrontendBytes<'a> {
     pending: Match,
     literal_idx: Idx,
 }
+
+// Implementation notes.
+//
+// `i32::MAX` limit we can work around by implementing a sliding `bytes` window paired with sliding
+// history values.
 
 impl<'a> FrontendBytes<'a> {
     #[inline(always)]
@@ -65,21 +69,36 @@ impl<'a> FrontendBytes<'a> {
         debug_assert!(self.literal_idx.is_zero());
         let len = self.bytes.len();
         if len > VN_CUTOFF as usize {
-            backend.init(dst, Some(len as u32))?;
-            self.finalize(backend, dst)?;
+            self.flush_backend::<_, _, true>(backend, dst)
+        } else if len > RAW_CUTOFF as usize {
+            self.flush_backend::<_, _, false>(&mut BackendVn::default(), dst)
+        } else {
+            self.flush_raw(dst)
+        }
+    }
+
+    fn flush_backend<B, O, const F: bool>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        debug_assert!(self.literal_idx.is_zero());
+        let len = self.bytes.len();
+        backend.init(dst, Some(len as u32))?;
+        let mark = dst.pos();
+        self.finalize(backend, dst)?;
+        let dst_len = (dst.pos() - mark) as u32;
+        if !F && dst_len < len as u32 + RAW_HEADER_SIZE {
             return Ok(());
         }
-        if len > RAW_CUTOFF as usize {
-            let mut backend = BackendVn::default();
-            backend.init(dst, Some(len as u32))?;
-            let mark = dst.pos();
-            self.finalize(&mut backend, dst)?;
-            let dst_len = (dst.pos() - mark) as u32;
-            if dst_len < len as u32 + RAW_HEADER_SIZE {
-                return Ok(());
-            }
-            dst.truncate(mark);
-        }
+        dst.truncate(mark);
+        self.flush_raw(dst)
+    }
+
+    fn flush_raw<O>(&mut self, dst: &mut O) -> io::Result<()>
+    where
+        O: ShortWriter,
+    {
         raw::raw_compress(dst, self.bytes)?;
         self.literal_idx = Idx::new(self.bytes.len() as u32);
         Ok(())
@@ -291,5 +310,92 @@ impl<'a> FrontendBytes<'a> {
 
     fn validate_match_idxs<M: MatchUnit>(&self, idx: Idx, match_idx: Idx) -> bool {
         match_idx < idx && usize::from(idx) <= self.bytes.len() - M::MATCH_UNIT as usize
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lmd::Lmd;
+
+    use super::super::dummy::{Dummy, DummyBackend};
+    use super::*;
+
+    // Match short: zero bytes, length 4. Lower limit.
+    #[test]
+    fn match_short_zero_4() -> io::Result<()> {
+        let mut table = HistoryTable::default();
+        let bytes = vec![0u8; 4];
+        let mut frontend = FrontendBytes::new(&mut table, &bytes)?;
+        let mut dst = Vec::default();
+        let mut backend = DummyBackend::default();
+        frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
+        frontend.match_short(&mut backend, &mut dst).unwrap();
+        if frontend.pending.match_len != 0 {
+            unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
+        }
+        let literal_len = frontend.bytes.len() as u32 - u32::from(frontend.literal_idx);
+        if literal_len > 0 {
+            unsafe { frontend.push_literals(&mut backend, &mut dst, literal_len)? };
+        }
+        assert_eq!(backend.literals, [0, 0, 0, 0]);
+        assert_eq!(backend.lmds, vec![Lmd::<Dummy>::new(4, 0, 1)]);
+        Ok(())
+    }
+
+    // Match short: zero bytes, length 5++.
+    #[test]
+    #[ignore = "expensive"]
+    fn match_short_zero_n() -> io::Result<()> {
+        let mut table = HistoryTable::default();
+        let bytes = vec![0u8; 0x1000];
+        let mut dst = Vec::default();
+        let mut backend = DummyBackend::default();
+        for n in 5..bytes.len() {
+            backend.init(&mut dst, None)?;
+            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n])?;
+            frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
+            frontend.match_short(&mut backend, &mut dst)?;
+            if frontend.pending.match_len != 0 {
+                unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
+            }
+            assert_eq!(u32::from(frontend.literal_idx), frontend.bytes.len() as u32);
+            assert_eq!(backend.literals, [0]);
+            assert_eq!(backend.lmds, vec![Lmd::<Dummy>::new(1, n as u32 - 1, 1)]);
+        }
+        Ok(())
+    }
+
+    // Sandwich, incremental literals.
+    #[allow(clippy::needless_range_loop)]
+    #[test]
+    #[ignore = "expensive"]
+    fn sandwich_n_short() -> io::Result<()> {
+        let mut table = HistoryTable::default();
+        let mut bytes = vec![0u8; 0x1000];
+        let mut dst = Vec::default();
+        let mut backend = DummyBackend::default();
+        for i in 0..4 {
+            bytes[i] = i as u8 + 1;
+        }
+        for n in 12..bytes.len() {
+            backend.init(&mut dst, None)?;
+            for i in 0..4 {
+                bytes[n as usize - 4 + i] = i as u8 + 1;
+            }
+            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n])?;
+            frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
+            frontend.match_short(&mut backend, &mut dst)?;
+            if frontend.pending.match_len != 0 {
+                unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
+            }
+            assert_eq!(u32::from(frontend.literal_idx), frontend.bytes.len() as u32);
+            assert_eq!(backend.literals, [1, 2, 3, 4, 0]);
+            assert_eq!(
+                backend.lmds,
+                vec![Lmd::<Dummy>::new(5, n as u32 - 9, 1), Lmd::<Dummy>::new(0, 4, n as u32 - 4),]
+            );
+            bytes[n as usize - 4] = 0;
+        }
+        Ok(())
     }
 }

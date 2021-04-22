@@ -718,26 +718,6 @@ mod tests {
         }
     }
 
-    // Match short: zero bytes, length 3. Invalid.
-    #[test]
-    #[should_panic]
-    fn match_short_zero_3() {
-        let mut ring_box = RingBox::<T>::default();
-        let mut table = HistoryTable::default();
-        let mut frontend = build((&mut ring_box).into(), &mut table);
-        let mut dst = Vec::default();
-        let mut backend = DummyBackend::default();
-        let base = Idx::default();
-        frontend.table.reset_idx(base - CLAMP_INTERVAL);
-        frontend.pending = Match::default();
-        frontend.literal_idx = base;
-        frontend.idx = base;
-        frontend.head = base;
-        frontend.tail = base + 3;
-        frontend.mark = base + T::RING_BLK_SIZE;
-        frontend.match_short(&mut backend, &mut dst).unwrap();
-    }
-
     // Match short: zero bytes, length 4. Lower limit.
     #[test]
     fn match_short_zero_4() -> io::Result<()> {
@@ -864,6 +844,7 @@ mod tests {
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
             }
+            assert_eq!(frontend.literal_idx, frontend.tail);
             assert_eq!(backend.literals, [1, 2, 3, 0]);
             assert_eq!(
                 backend.lmds,
