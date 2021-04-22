@@ -393,7 +393,6 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         O: ShortWriter,
     {
         debug_assert!(self.is_short());
-        debug_assert!(4 <= (self.tail - self.idx) as u32);
         let len = self.tail - self.idx;
         if len < 4 {
             return Ok(());
