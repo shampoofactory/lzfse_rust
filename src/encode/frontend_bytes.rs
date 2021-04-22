@@ -5,7 +5,7 @@ use crate::lmd::MatchDistance;
 use crate::match_kit;
 use crate::raw::{self, RAW_HEADER_SIZE};
 use crate::types::{Idx, ShortWriter};
-use crate::vn::BackendVn;
+use crate::vn::VnBackend;
 
 use super::backend::Backend;
 use super::backend_type::BackendType;
@@ -71,7 +71,7 @@ impl<'a> FrontendBytes<'a> {
         if len > VN_CUTOFF as usize {
             self.flush_backend::<_, _, true>(backend, dst)
         } else if len > RAW_CUTOFF as usize {
-            self.flush_backend::<_, _, false>(&mut BackendVn::default(), dst)
+            self.flush_backend::<_, _, false>(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
         }

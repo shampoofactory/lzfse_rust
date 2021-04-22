@@ -10,7 +10,7 @@ mod vn_core;
 #[cfg(test)]
 mod tests;
 
-pub use backend::BackendVn;
+pub use backend::VnBackend;
 pub use block::VnBlock;
 pub use error_kind::VnErrorKind;
 pub use object::Vn;

@@ -7,7 +7,7 @@ use crate::types::Idx;
 
 use test_kit::{Rng, Seq};
 
-use super::backend::BackendVn;
+use super::backend::VnBackend;
 use super::block::VnBlock;
 use super::constants::*;
 use super::object::Vn;
@@ -20,7 +20,7 @@ use std::io;
 
 /// Test buddy.
 struct Buddy {
-    backend: BackendVn,
+    backend: VnBackend,
     enc: Vec<u8>,
     dec: Vec<u8>,
 }
@@ -111,7 +111,7 @@ impl Buddy {
 
 impl Default for Buddy {
     fn default() -> Self {
-        Self { backend: BackendVn::default(), enc: Vec::default(), dec: Vec::default() }
+        Self { backend: VnBackend::default(), enc: Vec::default(), dec: Vec::default() }
     }
 }
 

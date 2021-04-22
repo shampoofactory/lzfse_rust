@@ -21,7 +21,7 @@ fn n_allocate(len: u32) -> usize {
     VN_HEADER_SIZE as usize + (len as usize / 4) * 5 + 32 + SLACK as usize + WIDE
 }
 
-pub struct BackendVn {
+pub struct VnBackend {
     mark: Idx,
     match_distance: u32,
     n_literals: u32,
@@ -33,7 +33,7 @@ pub struct BackendVn {
 /// Memory is allocated in advance for the entire block based on the worst scenario.
 /// Pushing literals with a block length of less than 4 more than once may overflow our memory
 /// allocation.
-impl Backend for BackendVn {
+impl Backend for VnBackend {
     type Type = Vn;
 
     #[inline(always)]
@@ -133,7 +133,7 @@ impl Backend for BackendVn {
     }
 }
 
-impl Default for BackendVn {
+impl Default for VnBackend {
     #[inline(always)]
     fn default() -> Self {
         Self { mark: Idx::default(), match_distance: 0, n_literals: 0, n_match_bytes: 0 }

@@ -6,7 +6,7 @@ use crate::lmd::MatchDistance;
 use crate::raw::{self, RAW_HEADER_SIZE};
 use crate::ring::{self, Ring, RingBlock, RingType};
 use crate::types::{Idx, ShortWriter};
-use crate::vn::{BackendVn, Vn};
+use crate::vn::{Vn, VnBackend};
 
 use super::backend::Backend;
 use super::backend_type::BackendType;
@@ -298,7 +298,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             self.flush_backend(backend, dst)
         } else if len > RAW_CUTOFF {
             self.commit = Commit::Vn;
-            self.flush_backend(&mut BackendVn::default(), dst)
+            self.flush_backend(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
         }
