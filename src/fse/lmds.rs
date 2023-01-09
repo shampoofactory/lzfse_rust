@@ -129,6 +129,7 @@ mod tests {
     use super::*;
 
     /// Test buddy.
+    #[derive(Default)]
     struct Buddy {
         weights: Weights,
         encoder: Encoder,
@@ -171,20 +172,6 @@ mod tests {
             self.encode()?;
             self.decode()?;
             Ok(self.check())
-        }
-    }
-
-    impl Default for Buddy {
-        fn default() -> Self {
-            Self {
-                weights: Weights::default(),
-                encoder: Encoder::default(),
-                decoder: Decoder::default(),
-                src: Lmds::default(),
-                dst: Lmds::default(),
-                param: LmdParam::default(),
-                enc: Vec::default(),
-            }
         }
     }
 
@@ -237,6 +224,7 @@ mod tests {
     // Random LMD.
     #[test]
     #[ignore = "expensive"]
+    #[allow(clippy::unnecessary_cast)]
     fn rng_1() -> crate::Result<()> {
         let mut buddy = Buddy::default();
         let mut lmds = Vec::default();
@@ -259,6 +247,7 @@ mod tests {
     // segfault/ panic/ trip debug assertions or break in a any other fashion.
     #[test]
     #[ignore = "expensive"]
+    #[allow(clippy::unnecessary_cast)]
     fn mutate_1() -> crate::Result<()> {
         let mut buddy = Buddy::default();
         let mut lmds = Vec::default();
@@ -290,6 +279,7 @@ mod tests {
     // segfault/ panic/ trip debug assertions or break in a any other fashion.
     #[test]
     #[ignore = "expensive"]
+    #[allow(clippy::unnecessary_cast)]
     fn mutate_2() -> crate::Result<()> {
         let mut buddy = Buddy::default();
         let mut lmds = Vec::default();

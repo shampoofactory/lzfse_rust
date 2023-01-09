@@ -1,6 +1,6 @@
 use crate::types::Idx;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Match {
     pub idx: Idx,
     pub match_idx: Idx,
@@ -30,12 +30,5 @@ impl Match {
             self.match_len = 0;
         }
         select
-    }
-}
-
-impl Default for Match {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { idx: Idx::default(), match_idx: Idx::default(), match_len: 0 }
     }
 }

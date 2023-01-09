@@ -16,15 +16,15 @@ pub fn n_raw_bytes_limit(n_literals: u32, n_lmds: u32) -> u32 {
 
 /// Naive maximum `n_payload_bytes` given the supplied parameters with leeway.
 fn lmd_n_payload_bytes_limit(num: u32) -> u32 {
-    1024 + 8 + (num * MAX_L_BITS as u32 + num * MAX_M_BITS as u32 + num * MAX_D_BITS as u32 + 7) / 8
+    1024 + 8 + (num * MAX_L_BITS + num * MAX_M_BITS + num * MAX_D_BITS + 7) / 8
 }
 
 /// Naive maximum `n_payload_bytes` given the supplied parameters with leeway.
 pub fn literal_n_payload_bytes_limit(num: u32) -> u32 {
-    1024 + (num * MAX_U_BITS as u32 + 7) / 8
+    1024 + (num * MAX_U_BITS + 7) / 8
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct FseBlock {
     literal: LiteralParam,
     lmd: LmdParam,
@@ -171,7 +171,7 @@ impl FseBlock {
         let lmd_state = self.lmd.state();
         let header_size = V2_HEADER_SIZE + n_weight_payload_bytes;
         dst.write_u32(MagicBytes::Vx2.into());
-        dst.write_u32(self.n_raw_bytes as u32);
+        dst.write_u32(self.n_raw_bytes);
         let mut p: u64 = 0;
         p.set_bits(00, 20,     self.literal.num() as u64);
         p.set_bits(20, 20,     self.literal.n_payload_bytes() as u64);
@@ -226,13 +226,7 @@ impl FseBlock {
     }
 }
 
-impl Default for FseBlock {
-    fn default() -> Self {
-        Self { literal: LiteralParam::default(), lmd: LmdParam::default(), n_raw_bytes: 0 }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct LmdParam {
     num: u32,
     n_payload_bytes: u32,
@@ -289,13 +283,7 @@ impl LmdParam {
     }
 }
 
-impl Default for LmdParam {
-    fn default() -> Self {
-        Self { num: 0, n_payload_bytes: 0, bits: 0, state: [0; 3] }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct LiteralParam {
     num: u32,
     n_payload_bytes: u32,
@@ -350,12 +338,6 @@ impl LiteralParam {
         } else {
             Ok(())
         }
-    }
-}
-
-impl Default for LiteralParam {
-    fn default() -> Self {
-        Self { num: 0, n_payload_bytes: 0, bits: 0, state: [0; 4] }
     }
 }
 

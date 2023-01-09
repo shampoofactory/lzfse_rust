@@ -17,7 +17,7 @@ pub struct RingView<'a, T> {
     pub(super) ring_ptr: *const u8,
     pub(super) head: Idx,
     pub(super) tail: Idx,
-    phantom: (PhantomData<T>, PhantomData<&'a ()>),
+    _phantom: (PhantomData<T>, PhantomData<&'a ()>),
 }
 
 impl<'a, T: RingType> RingView<'a, T> {
@@ -28,7 +28,7 @@ impl<'a, T: RingType> RingView<'a, T> {
             ring_ptr: ring.as_ptr(),
             head,
             tail,
-            phantom: (PhantomData::default(), PhantomData::default()),
+            _phantom: (PhantomData::default(), PhantomData::default()),
         }
     }
 }

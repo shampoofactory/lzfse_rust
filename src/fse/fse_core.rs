@@ -14,6 +14,7 @@ use super::lmds::Lmds;
 use super::object::Fse;
 use super::weights::Weights;
 
+#[derive(Default)]
 pub struct FseCore {
     decoder: Decoder,
     literals: Literals,
@@ -180,7 +181,7 @@ impl FseCore {
             match_distance.substitute(match_distance_pack);
             let ptr = unsafe { self.literals.as_ptr().add(literal_index as usize) };
             let bytes = unsafe { ShortBytes::from_raw_parts(ptr, literal_len.get() as usize) };
-            literal_index += literal_len.get() as u32;
+            literal_index += literal_len.get();
             if literal_index <= LITERALS_PER_BLOCK {
                 // Likely.
                 dst.write_bytes_short::<LiteralLen<Fse>, W00>(bytes)?;
@@ -207,21 +208,5 @@ impl FseCore {
     #[inline(always)]
     fn n_lmd_payload_bytes(&self) -> u32 {
         self.block.lmd().n_payload_bytes()
-    }
-}
-
-impl Default for FseCore {
-    fn default() -> Self {
-        Self {
-            literals: Literals::default(),
-            lmds: Lmds::default(),
-            weights: Weights::default(),
-            decoder: Decoder::default(),
-            block: FseBlock::default(),
-            literal_index: 0,
-            lmd_index: 0,
-            mark: 0,
-            match_distance: MatchDistanceUnpack::default(),
-        }
     }
 }

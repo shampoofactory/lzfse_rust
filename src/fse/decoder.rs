@@ -144,7 +144,7 @@ create_state_struct!(M, M_STATES as usize, FseErrorKind::BadLmdState.into());
 create_state_struct!(D, D_STATES as usize, FseErrorKind::BadLmdState.into());
 create_state_struct!(U, U_STATES as usize, FseErrorKind::BadLiteralState.into());
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(align(8))]
 pub struct VEntry {
     k: u8,
@@ -161,14 +161,7 @@ impl VEntry {
     }
 }
 
-impl Default for VEntry {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { k: 0, v_bits: 0, delta: 0, v_base: 0 }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(align(4))]
 pub struct UEntry {
     k: u8,
@@ -181,13 +174,6 @@ impl UEntry {
     pub unsafe fn decode<T: BitSrc>(self, reader: &mut BitReader<T>, state: &mut usize) -> u8 {
         *state = (reader.pull(self.k as usize) as isize + self.delta as isize) as usize;
         self.symbol
-    }
-}
-
-impl Default for UEntry {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { k: 0, symbol: 0, delta: 0 }
     }
 }
 
@@ -214,19 +200,19 @@ pub fn build_v_table(
         debug_assert!(total + w <= n_states);
         let k = w.leading_zeros() - n_clz;
         let x = ((n_states << 1) >> k) - w;
-        let v_bits = *unsafe { v_bits_table.get_unchecked(i as usize) };
-        let v_base = *unsafe { v_base_table.get_unchecked(i as usize) };
+        let v_bits = *unsafe { v_bits_table.get_unchecked(i) };
+        let v_base = *unsafe { v_base_table.get_unchecked(i) };
         e.k = k as u8;
         e.v_bits = v_bits;
         e.v_base = v_base;
         for j in 0..x {
             e.delta = (((w as i32 + j as i32) << k) - n_states as i32) as i16;
-            *unsafe { table.get_unchecked_mut((total + j as u32) as usize) } = e;
+            *unsafe { table.get_unchecked_mut((total + j) as usize) } = e;
         }
         e.k = (k as i32 - 1) as u8;
         for j in x..w {
             e.delta = ((j - x) << (k - 1)) as i16;
-            *unsafe { table.get_unchecked_mut((total + j as u32) as usize) } = e;
+            *unsafe { table.get_unchecked_mut((total + j) as usize) } = e;
         }
         total += w;
     }
@@ -255,12 +241,12 @@ pub fn build_u_table(weights: &[u16], table: &mut [UEntry]) {
         e.k = k as u8;
         for j in 0..x {
             e.delta = (((w as i32 + j as i32) << k) - n_states as i32) as i16;
-            *unsafe { table.get_unchecked_mut((total + j as u32) as usize) } = e;
+            *unsafe { table.get_unchecked_mut((total + j) as usize) } = e;
         }
         e.k = (k as i32 - 1) as u8;
         for j in x..w {
             e.delta = ((j - x) << (k - 1)) as i16;
-            *unsafe { table.get_unchecked_mut((total + j as u32) as usize) } = e;
+            *unsafe { table.get_unchecked_mut((total + j) as usize) } = e;
         }
         total += w;
     }

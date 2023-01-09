@@ -41,7 +41,7 @@ impl Encoder {
         let n_bits = *L_EXTRA_BITS.get_unchecked(symbol) as usize;
         debug_assert!(symbol <= L_BASE_VALUE.len());
         let base_v = *L_BASE_VALUE.get_unchecked(symbol) as usize;
-        let bits = v as usize - base_v;
+        let bits = v - base_v;
         writer.push_unchecked(bits, n_bits);
         debug_assert!(symbol <= self.0.len());
         self.0.get_unchecked(symbol).encode(writer, &mut state.0)
@@ -63,7 +63,7 @@ impl Encoder {
         let n_bits = *M_EXTRA_BITS.get_unchecked(symbol) as usize;
         debug_assert!(symbol <= M_BASE_VALUE.len());
         let base_v = *M_BASE_VALUE.get_unchecked(symbol) as usize;
-        let bits = v as usize - base_v;
+        let bits = v - base_v;
         writer.push_unchecked(bits, n_bits);
         debug_assert!(symbol <= self.1.len());
         self.1.get_unchecked(symbol).encode(writer, &mut state.0)
@@ -179,18 +179,11 @@ create_state_struct!(M, M_STATES, FseErrorKind::BadLmdState.into());
 create_state_struct!(D, D_STATES, FseErrorKind::BadLmdState.into());
 create_state_struct!(U, U_STATES, FseErrorKind::BadLiteralState.into());
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(align(4))]
 pub struct EEntry {
     t_k: i16,
     t_w: i16,
-}
-
-impl Default for EEntry {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { t_k: 0, t_w: 0 }
-    }
 }
 
 impl EEntry {
@@ -238,7 +231,7 @@ pub fn build_e_table(weights: &[u16], n_states: u32, table: &mut [EEntry]) {
         } else {
             debug_assert!(total + w <= n_states);
             let k = w.leading_zeros() - n_clz;
-            e.t_k = 1024 * k as i16 - ((w as u32) << k) as i16;
+            e.t_k = 1024 * k as i16 - ((w) << k) as i16;
             e.t_w = n_states as i16 + total as i16 - w as i16;
         }
         *unsafe { table.get_unchecked_mut(i) } = e;

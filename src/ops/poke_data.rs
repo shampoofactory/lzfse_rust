@@ -40,7 +40,7 @@ impl PokeData for [u8] {
     unsafe fn poke_data(&mut self, src: &[u8]) {
         debug_assert!(src.len() <= WIDE);
         if src.len() <= self.len() {
-            (&mut self[..src.len()]).copy_from_slice(src);
+            (self[..src.len()]).copy_from_slice(src);
         } else {
             self.copy_from_slice(&src[..self.len()]);
         }

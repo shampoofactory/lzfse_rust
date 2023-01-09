@@ -105,8 +105,8 @@ impl Weights {
     }
 
     pub fn store_v1_short<O: ShortWriter>(&self, dst: &mut O) -> io::Result<()> {
-        let mut wide_bytes = dst.short_block(V1_WEIGHT_PAYLOAD_BYTES)?;
-        self.store_v1(&mut wide_bytes);
+        let wide_bytes = dst.short_block(V1_WEIGHT_PAYLOAD_BYTES)?;
+        self.store_v1(wide_bytes);
         Ok(())
     }
 
@@ -127,8 +127,8 @@ impl Weights {
 
     pub fn store_v2_short<O: ShortWriter>(&self, dst: &mut O) -> io::Result<u32> {
         let pos = dst.pos();
-        let mut wide_bytes = dst.short_block(V2_WEIGHT_PAYLOAD_BYTES_MAX)?;
-        let n = self.store_v2(&mut wide_bytes);
+        let wide_bytes = dst.short_block(V2_WEIGHT_PAYLOAD_BYTES_MAX)?;
+        let n = self.store_v2(wide_bytes);
         dst.truncate(pos + n);
         Ok(n)
     }

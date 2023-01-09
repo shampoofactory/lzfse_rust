@@ -204,7 +204,7 @@ impl<'a, T: RingType> Ring<'a, T> {
 
     #[inline(always)]
     pub fn view(&self, head: Idx, tail: Idx) -> RingView<T> {
-        RingView::new(&self, head, tail)
+        RingView::new(self, head, tail)
     }
 }
 

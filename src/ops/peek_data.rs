@@ -54,7 +54,7 @@ impl PeekData for [u8] {
         if dst.len() <= self.len() {
             dst.copy_from_slice(&self[..dst.len()]);
         } else {
-            (&mut dst[..self.len()]).copy_from_slice(self);
+            (dst[..self.len()]).copy_from_slice(self);
         }
     }
 }

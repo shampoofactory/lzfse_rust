@@ -10,6 +10,7 @@ use std::io;
 ///
 ///
 /// This basic implementation encodes byte slices into byte vectors.
+#[derive(Default)]
 pub struct LzfseEncoder {
     pub(super) backend: FseBackend,
     pub(super) table: HistoryTable,
@@ -51,12 +52,6 @@ impl LzfseEncoder {
         self.dst_mark = dst.len() as u64;
         FrontendBytes::new(&mut self.table, src)?.execute(&mut self.backend, dst)?;
         Ok(dst.len() as u64 - self.dst_mark)
-    }
-}
-
-impl Default for LzfseEncoder {
-    fn default() -> Self {
-        Self { backend: FseBackend::default(), table: HistoryTable::default(), dst_mark: 0 }
     }
 }
 

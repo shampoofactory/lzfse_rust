@@ -2,14 +2,8 @@ use std::io::prelude::*;
 use std::io::{self, ErrorKind};
 
 /// Byte sequence generator that that repeats 0, 1, 2, ..., 255 cycles.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Cycle(u8);
-
-impl Default for Cycle {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 impl Iterator for Cycle {
     type Item = u8;

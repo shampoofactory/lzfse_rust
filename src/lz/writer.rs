@@ -95,9 +95,9 @@ impl<T: LzWriter + ?Sized> LzWriter for &mut T {
 }
 
 impl LzWriter for Vec<u8> {
-    const MAX_MATCH_DISTANCE: u32 = u32::MAX as u32;
+    const MAX_MATCH_DISTANCE: u32 = u32::MAX;
 
-    const MAX_MATCH_LEN: u32 = u32::MAX as u32;
+    const MAX_MATCH_LEN: u32 = u32::MAX;
 
     fn write_bytes_long<T: CopyLong>(&mut self, bytes: T) -> crate::Result<()> {
         let len = bytes.len();
@@ -105,7 +105,7 @@ impl LzWriter for Vec<u8> {
         let index = self.len();
         unsafe {
             bytes.copy_long_raw(self.as_mut_ptr().add(index), len);
-            self.set_len(index + len as usize);
+            self.set_len(index + len);
         }
         Ok(())
     }
@@ -122,7 +122,7 @@ impl LzWriter for Vec<u8> {
         let index = self.len();
         unsafe {
             bytes.copy_short_raw::<CopyTypeIndex>(self.as_mut_ptr().add(index), len);
-            self.set_len(index + len as usize);
+            self.set_len(index + len);
         }
         Ok(())
     }
@@ -154,7 +154,7 @@ impl LzWriter for Vec<u8> {
         let len = len.get();
         let distance = distance.get() as usize;
         let dst_index = self.len();
-        if distance as usize <= dst_index {
+        if distance <= dst_index {
             // Likely
             let src_index = dst_index - distance;
             self.reserve(dst_index + len as usize + 32);
@@ -216,10 +216,10 @@ mod tests {
         let mut wtr = Vec::<u8>::default();
         for len in 1..0x1000 {
             let mut i = 0;
-            while i + len as usize <= src.len() {
+            while i + len <= src.len() {
                 let bytes = &src[i..i + len];
                 wtr.write_bytes_long(bytes)?;
-                i += len as usize;
+                i += len;
             }
             assert_eq!(wtr.n_raw_bytes(), i as u64);
             assert!(src[..i] == wtr[..i]);
@@ -239,7 +239,7 @@ mod tests {
             let len = (rng.gen() as usize % 0x200).min(src.len() - i);
             let bytes = &src[i..i + len];
             wtr.write_bytes_long(bytes)?;
-            i += len as usize;
+            i += len;
         }
         assert_eq!(wtr.n_raw_bytes(), i as u64);
         assert!(src == wtr);
@@ -258,7 +258,7 @@ mod tests {
                 let bytes = &src[i..];
                 let short_bytes = ShortBytes::<LiteralLen<V1>, Wide>::from_bytes(bytes, len);
                 wtr.write_bytes_short(short_bytes)?;
-                i += len as usize;
+                i += len;
             }
             assert_eq!(wtr.n_raw_bytes(), i as u64);
             assert!(src[..i] == wtr);
@@ -279,7 +279,7 @@ mod tests {
             let bytes = &src[i..];
             let short_bytes = ShortBytes::<LiteralLen<V1>, Wide>::from_bytes(bytes, len);
             wtr.write_bytes_short(short_bytes)?;
-            i += len as usize;
+            i += len;
         }
         assert_eq!(wtr.n_raw_bytes(), i as u64);
         assert!(src[..i] == wtr);
@@ -360,7 +360,7 @@ mod tests {
                         assert!(src[..literal_len] == wtr[offset..offset + literal_len]);
                         // Match
                         let index = offset + literal_len;
-                        let match_index = index - match_distance as usize;
+                        let match_index = index - match_distance;
                         let match_dst = match_index..match_index + match_len;
                         let match_src = index..index + match_len;
                         assert_eq!(wtr[match_dst], wtr[match_src]);
@@ -379,10 +379,7 @@ mod tests {
         let mut wtr = Vec::default();
         wtr.write_bytes_long(bytes.as_ref())?;
         for match_distance in 1..V1::MAX_MATCH_DISTANCE {
-            wtr.write_match::<V1>(
-                MatchLen::new(1),
-                MatchDistanceUnpack::new(match_distance as u32),
-            )?;
+            wtr.write_match::<V1>(MatchLen::new(1), MatchDistanceUnpack::new(match_distance))?;
         }
         Ok(())
     }
@@ -393,10 +390,8 @@ mod tests {
         let bytes = [0u8];
         let mut wtr = Vec::default();
         for match_distance in 1..V1::MAX_MATCH_DISTANCE {
-            match wtr.write_match::<V1>(
-                MatchLen::new(1),
-                MatchDistanceUnpack::new(match_distance as u32),
-            ) {
+            match wtr.write_match::<V1>(MatchLen::new(1), MatchDistanceUnpack::new(match_distance))
+            {
                 Err(Error::BadDValue) => {}
                 _ => panic!(),
             };

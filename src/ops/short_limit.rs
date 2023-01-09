@@ -1,6 +1,6 @@
 /// Length limit for short types.
 ///
-
+/// # Safety
 ///
 /// * `SHORT_LIMIT <= i32::MAX`
 pub unsafe trait ShortLimit {

@@ -57,7 +57,7 @@ impl<'a, O: Write> LzfseWriter<'a, O> {
     /// Finalize the encoding process.
     /// Failure to finalize will likely result in a truncated output.
     pub fn finalize(mut self) -> io::Result<O> {
-        self.frontend.flush(&mut self.backend, &mut self.writer)?;
+        self.frontend.flush(self.backend, &mut self.writer)?;
         self.writer.into_inner().map_err(Into::into).map(|u| u.0)
     }
 }
@@ -65,7 +65,7 @@ impl<'a, O: Write> LzfseWriter<'a, O> {
 impl<'a, O: Write> Write for LzfseWriter<'a, O> {
     #[inline(always)]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.frontend.write(&mut self.backend, buf, &mut self.writer)
+        self.frontend.write(self.backend, buf, &mut self.writer)
     }
 
     #[inline(always)]

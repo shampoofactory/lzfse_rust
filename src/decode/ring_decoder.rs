@@ -13,6 +13,7 @@ use std::io::{self, Read, Write};
 /// This implementation builds upon [LzfseDecoder] with the addition of internal ring buffers that
 /// enable efficient IO operations. It can be converted to a mutable [LzfseDecoder] reference using
 /// [as_mut()](AsMut::as_mut).
+#[derive(Default)]
 pub struct LzfseRingDecoder {
     core: LzfseDecoder,
     input: RingBox<Input>,
@@ -85,16 +86,6 @@ impl LzfseRingDecoder {
     pub fn reader_bytes<'a>(&'a mut self, bytes: &'a [u8]) -> LzfseReaderBytes {
         let dst = RingLzWriter::new((&mut self.output).into(), io::sink());
         LzfseReaderBytes(ReaderCore::new(dst, bytes, &mut self.core.fse_core))
-    }
-}
-
-impl Default for LzfseRingDecoder {
-    fn default() -> Self {
-        Self {
-            core: LzfseDecoder::default(),
-            input: RingBox::default(),
-            output: RingBox::default(),
-        }
     }
 }
 

@@ -42,7 +42,7 @@ impl<'a, O, T: RingType> RingLzWriter<'a, O, T> {
             }
             unsafe { ptr::copy_nonoverlapping(src, dst.as_mut_ptr(), limit) };
             idx += limit as u32;
-            dst = unsafe { dst.get_unchecked_mut(limit as usize..) };
+            dst = unsafe { dst.get_unchecked_mut(limit..) };
         }
     }
 }
@@ -51,7 +51,7 @@ impl<'a, O: Write, T: RingType> RingLzWriter<'a, O, T> {
     #[inline(never)]
     fn flush(&mut self, len: usize) -> crate::Result<()> {
         self.inner.write_all(&self.ring)?;
-        self.ring.head_copy_in_len(len as usize);
+        self.ring.head_copy_in_len(len);
         self.ring.tail_copy_out();
         Ok(())
     }
@@ -110,7 +110,7 @@ impl<'a, O: Write, T: RingType> LzWriter for RingLzWriter<'a, O, T> {
         &mut self,
         bytes: ShortBytes<U, W>,
     ) -> crate::Result<()> {
-        assert!(U::SHORT_LIMIT as u32 <= Self::SHORT_LIMIT);
+        assert!(U::SHORT_LIMIT <= Self::SHORT_LIMIT);
         // Lmdy script:
         // println!("L:{}", bytes.len());
         let len = bytes.len();
@@ -293,7 +293,7 @@ mod tests {
             let len = (rng.gen() as usize % T1::RING_SIZE as usize * 2).min(src.len() - i);
             let bytes = &src[i..i + len];
             wtr.write_bytes_long(bytes)?;
-            i += len as usize;
+            i += len;
         }
         assert_eq!(wtr.n_raw_bytes(), i as u64);
         wtr.into_inner()?;
@@ -315,7 +315,7 @@ mod tests {
                 let bytes = &src[i..];
                 let short_bytes = ShortBytes::<RingLzWriter<(), T1>, Wide>::from_bytes(bytes, len);
                 wtr.write_bytes_short(short_bytes)?;
-                i += len as usize;
+                i += len;
             }
             assert_eq!(wtr.n_raw_bytes(), i as u64);
             wtr.into_inner()?;
@@ -339,7 +339,7 @@ mod tests {
             let bytes = &src[i..];
             let short_bytes = ShortBytes::<RingLzWriter<(), T1>, Wide>::from_bytes(bytes, len);
             wtr.write_bytes_short(short_bytes)?;
-            i += len as usize;
+            i += len;
         }
         assert_eq!(wtr.n_raw_bytes(), i as u64);
         wtr.into_inner()?;
@@ -430,9 +430,9 @@ mod tests {
                         assert!(src[..literal_len] == dst[offset..offset + literal_len]);
                         // Match
                         let index = offset + literal_len;
-                        let match_index = index - match_distance as usize;
-                        let match_dst = match_index..match_index + match_len as usize;
-                        let match_src = index..index + match_len as usize;
+                        let match_index = index - match_distance;
+                        let match_dst = match_index..match_index + match_len;
+                        let match_src = index..index + match_len;
                         assert!(dst[match_dst] == dst[match_src]);
                         dst.clear();
                     }
@@ -468,8 +468,8 @@ mod tests {
                 if d == 0 {
                     continue;
                 }
-                dup.write_match::<V1>(MatchLen::new(m as u32), MatchDistanceUnpack::new(d as u32))?;
-                wtr.write_match::<V1>(MatchLen::new(m as u32), MatchDistanceUnpack::new(d as u32))?;
+                dup.write_match::<V1>(MatchLen::new(m), MatchDistanceUnpack::new(d))?;
+                wtr.write_match::<V1>(MatchLen::new(m), MatchDistanceUnpack::new(d))?;
             }
             assert_eq!(wtr.n_raw_bytes(), dup.n_raw_bytes());
             wtr.into_inner()?;
@@ -488,10 +488,7 @@ mod tests {
         let mut wtr = RingLzWriter::new((&mut ring_box).into(), Zeros);
         wtr.write_bytes_long(bytes.as_ref())?;
         for match_distance in 1..=RingLzWriter::<io::Sink, T1>::MAX_MATCH_DISTANCE {
-            wtr.write_match::<V1>(
-                MatchLen::new(1),
-                MatchDistanceUnpack::new(match_distance as u32),
-            )?;
+            wtr.write_match::<V1>(MatchLen::new(1), MatchDistanceUnpack::new(match_distance))?;
         }
         wtr.into_inner()?;
         Ok(())
@@ -504,10 +501,8 @@ mod tests {
         let mut ring_box = RingBox::<T1>::default();
         let mut wtr = RingLzWriter::new((&mut ring_box).into(), Zeros);
         for match_distance in 1..=RingLzWriter::<io::Sink, T1>::MAX_MATCH_DISTANCE {
-            match wtr.write_match::<V1>(
-                MatchLen::new(1),
-                MatchDistanceUnpack::new(match_distance as u32),
-            ) {
+            match wtr.write_match::<V1>(MatchLen::new(1), MatchDistanceUnpack::new(match_distance))
+            {
                 Err(Error::BadDValue) => {}
                 _ => panic!(),
             };

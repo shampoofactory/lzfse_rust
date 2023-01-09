@@ -69,8 +69,8 @@ impl<'a, 'b, I: Read, T: 'a + Copy + RingBlock> ByteReader<'a> for RingReader<'b
             let limit = T::RING_SIZE as usize - index;
             let m = len.min(limit);
             debug_assert_eq!(m % T::RING_BLK_SIZE as usize, 0);
-            let mut buf = &mut self.ring[index..index + m];
-            let n = self.inner.read_fully(&mut buf)?;
+            let buf = &mut self.ring[index..index + m];
+            let n = self.inner.read_fully(buf)?;
             if index == 0 {
                 self.ring.head_copy_out();
             }

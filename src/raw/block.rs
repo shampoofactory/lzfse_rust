@@ -7,7 +7,7 @@ use crate::types::{ByteReader, ShortBuffer};
 
 pub const RAW_HEADER_SIZE: u32 = 0x08;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct RawBlock {
     n_raw_bytes: u32,
 }
@@ -90,12 +90,5 @@ impl RawBlock {
             }
         }
         Ok(())
-    }
-}
-
-impl Default for RawBlock {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { n_raw_bytes: 0 }
     }
 }

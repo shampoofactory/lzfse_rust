@@ -45,7 +45,7 @@ impl Literals {
         self.1 += n_literals as usize;
     }
 
-    #[allow(clippy::clippy::identity_op)]
+    #[allow(clippy::identity_op)]
     pub fn load<T>(&mut self, src: T, decoder: &Decoder, param: &LiteralParam) -> crate::Result<()>
     where
         T: BitSrc,
@@ -186,6 +186,7 @@ mod tests {
     use super::*;
 
     /// Test buddy.
+    #[derive(Default)]
     struct Buddy {
         weights: Weights,
         encoder: Encoder,
@@ -225,8 +226,8 @@ mod tests {
         }
 
         fn check(&self) -> bool {
-            assert!(self.n_literals as usize <= self.src.len());
-            assert!(self.n_literals as usize <= self.dst.len());
+            assert!(self.n_literals <= self.src.len());
+            assert!(self.n_literals <= self.dst.len());
             self.src.as_ref()[..self.n_literals] == self.dst.as_ref()[..self.n_literals]
         }
 
@@ -235,21 +236,6 @@ mod tests {
             self.encode()?;
             self.decode()?;
             Ok(self.check())
-        }
-    }
-
-    impl Default for Buddy {
-        fn default() -> Self {
-            Self {
-                weights: Weights::default(),
-                encoder: Encoder::default(),
-                decoder: Decoder::default(),
-                src: Literals::default(),
-                dst: Literals::default(),
-                param: LiteralParam::default(),
-                enc: Vec::default(),
-                n_literals: 0,
-            }
         }
     }
 

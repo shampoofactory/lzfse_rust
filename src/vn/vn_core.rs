@@ -30,6 +30,7 @@ use std::num::NonZeroU32;
 // exact limits vary by opcode. With care, this allows us skip certain limit/ boundary checks.
 const MIN_LIMIT: u32 = 0x0200;
 
+#[derive(Default)]
 pub struct VnCore {
     n_raw_bytes: u32,
     n_payload_bytes: u32,
@@ -269,7 +270,7 @@ impl VnCore {
     {
         debug_assert!(literal_len <= Vn::MAX_LITERAL_LEN as u32);
         debug_assert!(match_len <= Vn::MAX_MATCH_LEN as u32);
-        debug_assert!(match_distance <= Vn::MAX_MATCH_DISTANCE as u32);
+        debug_assert!(match_distance <= Vn::MAX_MATCH_DISTANCE);
         debug_assert_ne!(match_len, 0);
         if src.len() < literal_len as usize + 8 {
             return Err(crate::Error::PayloadUnderflow);
@@ -282,13 +283,6 @@ impl VnCore {
         dst.write_quad(bytes, literal_len)?;
         write_match(dst, match_len, match_distance)?;
         Ok(literal_len.get())
-    }
-}
-
-impl Default for VnCore {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { n_raw_bytes: 0, n_payload_bytes: 0, match_distance: MatchDistanceUnpack::default() }
     }
 }
 

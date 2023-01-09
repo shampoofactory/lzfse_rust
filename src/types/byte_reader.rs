@@ -26,7 +26,7 @@ pub trait ByteReader<'a>: Len + PeekData + Skip {
 }
 
 impl<'a, 'b> ByteReader<'a> for &'b [u8] {
-    const VIEW_LIMIT: usize = usize::MAX as usize;
+    const VIEW_LIMIT: usize = usize::MAX;
 
     type View = &'a [u8];
 

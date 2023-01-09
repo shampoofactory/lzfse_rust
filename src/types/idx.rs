@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter, LowerHex, Result, UpperHex};
 use std::ops::{Add, AddAssign, Div, DivAssign, Neg, Rem, Sub, SubAssign};
 
 /// Wrapping index type.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Idx(u32);
 
 impl Idx {
@@ -15,13 +15,6 @@ impl Idx {
     #[inline(always)]
     pub fn is_zero(self) -> bool {
         self.0 == 0
-    }
-}
-
-impl Default for Idx {
-    #[inline(always)]
-    fn default() -> Self {
-        Self(0)
     }
 }
 

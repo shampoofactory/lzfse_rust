@@ -7,7 +7,7 @@ pub fn build_match_inc(slice: &mut [u8], index: usize, match_index: usize, match
     assert!(distance <= 255);
     slice.iter_mut().for_each(|u| *u = 0);
     for i in 0..match_len + distance {
-        slice[match_index + i] = (i % distance as usize) as u8 + 1;
+        slice[match_index + i] = (i % distance) as u8 + 1;
     }
 }
 
@@ -20,7 +20,7 @@ pub fn build_match_dec(slice: &mut [u8], index: usize, match_index: usize, match
     assert!(distance <= 255);
     slice.iter_mut().for_each(|u| *u = 0);
     for i in 0..match_len + distance {
-        slice[index - i - 1] = (i % distance as usize) as u8 + 1;
+        slice[index - i - 1] = (i % distance) as u8 + 1;
     }
 }
 

@@ -13,6 +13,7 @@ use std::fmt;
 ///
 ///
 /// This basic implementation decodes byte slices into byte vectors.
+#[derive(Default)]
 pub struct LzfseDecoder {
     pub(super) fse_core: FseCore,
     n_payload_bytes: u64,
@@ -169,12 +170,6 @@ impl LzfseDecoder {
         let n = block.decode(dst, src)?;
         self.n_payload_bytes += n as u64;
         Ok(())
-    }
-}
-
-impl Default for LzfseDecoder {
-    fn default() -> Self {
-        Self { fse_core: FseCore::default(), n_payload_bytes: 0, dst_mark: 0 }
     }
 }
 

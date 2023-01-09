@@ -8,6 +8,7 @@ use super::object::Fse;
 
 use std::io;
 
+#[derive(Default)]
 pub struct FseBackend {
     buffer: Buffer,
     weights: Weights,
@@ -91,12 +92,6 @@ impl Backend for FseBackend {
     fn finalize<O: ShortWriter>(&mut self, dst: &mut O) -> io::Result<()> {
         self.emit_block_v2(dst, false)?;
         Ok(())
-    }
-}
-
-impl Default for FseBackend {
-    fn default() -> Self {
-        Self { buffer: Buffer::default(), weights: Weights::default(), encoder: Encoder::default() }
     }
 }
 

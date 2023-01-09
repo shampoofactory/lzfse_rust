@@ -98,7 +98,7 @@ impl LzfseRingEncoder {
 }
 
 impl Default for LzfseRingEncoder {
-    #[allow(clippy::clippy::assertions_on_constants)]
+    #[allow(clippy::assertions_on_constants)]
     fn default() -> Self {
         assert!(V1_MAX_BLOCK_LEN + 64 < RingShortWriter::<(), Output>::FLUSH_LIMIT);
         assert!(V2_MAX_BLOCK_LEN + 64 < RingShortWriter::<(), Output>::FLUSH_LIMIT);

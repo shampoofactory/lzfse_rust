@@ -19,6 +19,7 @@ use std::io;
 // encoding/ decoding code is also stressed, this is covered comprehensively by it's own unit tests.
 
 /// Test buddy.
+#[derive(Default)]
 struct Buddy {
     backend: VnBackend,
     enc: Vec<u8>,
@@ -106,12 +107,6 @@ impl Buddy {
 
     fn check_lmds(&self, literals: &[u8], lmds: &[Lmd<Vn>]) -> bool {
         test_utils::check_lmds(&self.dec, literals, lmds)
-    }
-}
-
-impl Default for Buddy {
-    fn default() -> Self {
-        Self { backend: VnBackend::default(), enc: Vec::default(), dec: Vec::default() }
     }
 }
 
@@ -204,6 +199,7 @@ fn matches_3() -> crate::Result<()> {
 // Random LMD generation.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn fuzz_lmd() -> crate::Result<()> {
     let bytes = Seq::default().take(0x8_0000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -235,6 +231,7 @@ fn fuzz_lmd() -> crate::Result<()> {
 // Random LMD generation with n decoding.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn fuzz_lmd_n() -> crate::Result<()> {
     let bytes = Seq::default().take(0x8_0000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -364,6 +361,7 @@ fn edge_4() -> crate::Result<()> {
 // segfault/ panic/ trip debug assertions or break in a any other fashion.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn mutate_rng_1() -> crate::Result<()> {
     let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -387,7 +385,7 @@ fn mutate_rng_1() -> crate::Result<()> {
             index += l as usize;
             n_raw_bytes += m;
         }
-        buddy.encode_lmds(&bytes[..index as usize], &lmds)?;
+        buddy.encode_lmds(&bytes[..index], &lmds)?;
         for j in 4..buddy.enc.len() {
             buddy.enc[j] = buddy.enc[j].wrapping_add(1);
             let _ = buddy.decode();
@@ -404,6 +402,7 @@ fn mutate_rng_1() -> crate::Result<()> {
 // segfault/ panic/ trip debug assertions or break in a any other fashion.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn mutate_rng_2() -> crate::Result<()> {
     let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -427,7 +426,7 @@ fn mutate_rng_2() -> crate::Result<()> {
             index += l as usize;
             n_raw_bytes += m;
         }
-        buddy.encode_lmds(&bytes[..index as usize], &lmds)?;
+        buddy.encode_lmds(&bytes[..index], &lmds)?;
         for _ in 0..255 {
             for j in 4..buddy.enc.len() {
                 buddy.enc[j] = buddy.enc[j].wrapping_add(1);

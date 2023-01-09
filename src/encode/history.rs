@@ -103,7 +103,7 @@ impl Deref for History {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct UIdx {
     pub u: u32,
     pub idx: Idx,
@@ -113,13 +113,6 @@ impl UIdx {
     #[inline(always)]
     pub fn new(u: u32, idx: Idx) -> Self {
         Self { u, idx }
-    }
-}
-
-impl Default for UIdx {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { idx: Idx::default(), u: 0 }
     }
 }
 

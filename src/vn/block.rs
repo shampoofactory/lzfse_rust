@@ -6,7 +6,7 @@ use crate::types::ShortBuffer;
 use super::constants::*;
 use super::error_kind::VnErrorKind;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct VnBlock {
     n_raw_bytes: u32,
     n_payload_bytes: u32,
@@ -39,8 +39,8 @@ impl VnBlock {
     pub fn store(&self, mut dst: &mut [u8]) {
         assert_eq!(dst.len(), VN_HEADER_SIZE as usize);
         dst.write_u32(MagicBytes::Vxn.into());
-        dst.write_u32(self.n_raw_bytes as u32);
-        dst.write_u32(self.n_payload_bytes as u32);
+        dst.write_u32(self.n_raw_bytes);
+        dst.write_u32(self.n_payload_bytes);
     }
 
     #[inline(always)]
@@ -51,12 +51,5 @@ impl VnBlock {
     #[inline(always)]
     pub fn n_raw_bytes(&self) -> u32 {
         self.n_raw_bytes
-    }
-}
-
-impl Default for VnBlock {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { n_payload_bytes: 0, n_raw_bytes: 0 }
     }
 }

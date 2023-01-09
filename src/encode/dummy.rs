@@ -64,7 +64,7 @@ unsafe impl MatchUnit for Dummy {
 
 impl BackendType for Dummy {}
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DummyBackend {
     pub literals: Vec<u8>,
     pub lmds: Vec<Lmd<Dummy>>,
@@ -117,11 +117,5 @@ impl Backend for DummyBackend {
 
     fn finalize<O: ShortWriter>(&mut self, _: &mut O) -> io::Result<()> {
         Ok(())
-    }
-}
-
-impl Default for DummyBackend {
-    fn default() -> Self {
-        Self { literals: Vec::default(), lmds: Vec::default() }
     }
 }

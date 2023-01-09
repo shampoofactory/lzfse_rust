@@ -224,7 +224,7 @@ impl<'a> FrontendBytes<'a> {
         let index = usize::from(idx);
         let match_index = usize::from(match_idx);
         let literal_len = (idx - self.literal_idx) as usize;
-        let max = (literal_len as usize).min(match_index);
+        let max = (literal_len).min(match_index);
         match_kit::fast_match_dec_unchecked(self.bytes, index, match_index, max) as u32
     }
 
@@ -380,7 +380,7 @@ mod tests {
         for n in 12..bytes.len() {
             backend.init(&mut dst, None)?;
             for i in 0..4 {
-                bytes[n as usize - 4 + i] = i as u8 + 1;
+                bytes[n - 4 + i] = i as u8 + 1;
             }
             let mut frontend = FrontendBytes::new(&mut table, &bytes[..n])?;
             frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
@@ -394,7 +394,7 @@ mod tests {
                 backend.lmds,
                 vec![Lmd::<Dummy>::new(5, n as u32 - 9, 1), Lmd::<Dummy>::new(0, 4, n as u32 - 4),]
             );
-            bytes[n as usize - 4] = 0;
+            bytes[n - 4] = 0;
         }
         Ok(())
     }

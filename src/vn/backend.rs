@@ -21,6 +21,7 @@ fn n_allocate(len: u32) -> usize {
     VN_HEADER_SIZE as usize + (len as usize / 4) * 5 + 32 + SLACK as usize + WIDE
 }
 
+#[derive(Default)]
 pub struct VnBackend {
     mark: Idx,
     match_distance: u32,
@@ -130,13 +131,6 @@ impl Backend for VnBackend {
         let n_raw_bytes = self.n_literals + self.n_match_bytes;
         VnBlock::new(n_raw_bytes, n_payload_bytes).expect("internal error").store(buf);
         Ok(())
-    }
-}
-
-impl Default for VnBackend {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { mark: Idx::default(), match_distance: 0, n_literals: 0, n_match_bytes: 0 }
     }
 }
 

@@ -17,6 +17,7 @@ use std::io::{self};
 // Block level tests.
 
 /// Test buddy.
+#[derive(Default)]
 struct Buddy {
     backend: FseBackend,
     core: FseCore,
@@ -149,17 +150,6 @@ impl Buddy {
     }
 }
 
-impl Default for Buddy {
-    fn default() -> Self {
-        Self {
-            backend: FseBackend::default(),
-            core: FseCore::default(),
-            enc: Vec::default(),
-            dec: Vec::default(),
-        }
-    }
-}
-
 // Quote.
 #[test]
 fn quote() -> crate::Result<()> {
@@ -267,6 +257,7 @@ fn matches_4() -> crate::Result<()> {
 // Random LMD generation.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn fuzz_lmd() -> crate::Result<()> {
     let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -298,6 +289,7 @@ fn fuzz_lmd() -> crate::Result<()> {
 // Random LMD generation with n decoding.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn fuzz_lmd_n() -> crate::Result<()> {
     let bytes = Seq::default().take(LITERALS_PER_BLOCK as usize).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -475,6 +467,7 @@ fn edge_6() -> crate::Result<()> {
 // segfault/ panic/ trip debug assertions or break in a any other fashion.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn mutate_rng_1() -> crate::Result<()> {
     let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();
@@ -515,6 +508,7 @@ fn mutate_rng_1() -> crate::Result<()> {
 // segfault/ panic/ trip debug assertions or break in a any other fashion.
 #[test]
 #[ignore = "expensive"]
+#[allow(clippy::unnecessary_cast)]
 fn mutate_rng_2() -> crate::Result<()> {
     let bytes = Seq::default().take(0x1000).collect::<Vec<_>>();
     let mut buddy = Buddy::default();

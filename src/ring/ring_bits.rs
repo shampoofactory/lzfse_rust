@@ -95,7 +95,7 @@ mod tests {
         let bytes = b"********ABCDEFGHIJKLMNOP12345678";
         let mut ring_box = RingBox::<T>::default();
         let mut ring = Ring::from(&mut ring_box);
-        (&mut ring[..bytes.len()]).copy_from_slice(bytes);
+        (ring[..bytes.len()]).copy_from_slice(bytes);
         ring.head_copy_in();
         let view = ring.view(Idx::new(0), Idx::new(bytes.len() as u32));
         let mut bs = RingBits::new(view);
@@ -123,7 +123,7 @@ mod tests {
         let bytes = b"********ABCDEFGHIJKLMNOP1234567";
         let mut ring_box = RingBox::<T>::default();
         let mut ring = Ring::from(&mut ring_box);
-        (&mut ring[..bytes.len()]).copy_from_slice(bytes);
+        (ring[..bytes.len()]).copy_from_slice(bytes);
         ring.head_copy_in();
         let view = ring.view(Idx::new(0), Idx::new(bytes.len() as u32));
         let mut bs = RingBits::new(view);

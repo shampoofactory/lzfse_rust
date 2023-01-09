@@ -14,6 +14,7 @@ use super::Fse;
 use std::convert::AsRef;
 use std::io;
 
+#[derive(Default)]
 pub struct Buffer {
     literals: Literals,
     lmds: Lmds,
@@ -126,17 +127,6 @@ impl Buffer {
     #[inline(always)]
     fn n_raw_bytes(&self) -> u32 {
         self.literals.len() as u32 + self.n_match_bytes
-    }
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Self {
-            literals: Literals::default(),
-            lmds: Lmds::default(),
-            n_match_bytes: 0,
-            match_distance: 0,
-        }
     }
 }
 

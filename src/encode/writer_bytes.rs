@@ -60,7 +60,7 @@ impl<'a> LzfseWriterBytes<'a> {
     /// Finalize the encoding process.
     /// Failure to finalize will likely result in a truncated output.
     pub fn finalize(mut self) -> io::Result<Vec<u8>> {
-        self.frontend.flush(&mut self.backend, &mut self.vec)?;
+        self.frontend.flush(self.backend, &mut self.vec)?;
         Ok(self.vec)
     }
 }
@@ -68,7 +68,7 @@ impl<'a> LzfseWriterBytes<'a> {
 impl<'a> Write for LzfseWriterBytes<'a> {
     #[inline(always)]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.frontend.write(&mut self.backend, buf, &mut self.vec)
+        self.frontend.write(self.backend, buf, &mut self.vec)
     }
 
     #[inline(always)]

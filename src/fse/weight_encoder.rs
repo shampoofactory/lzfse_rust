@@ -8,7 +8,7 @@ pub const fn weight_payload_limit(n_weights: usize) -> usize {
 
 #[inline(always)]
 pub fn decode_weight(u: usize) -> (usize, usize) {
-    let index = u as usize & 0x1F;
+    let index = u & 0x1F;
     let u_bits = WEIGHTS_BITS_TABLE[index] as usize;
     let w = match u_bits {
         8 => 8 + ((u >> 4) & 0xF),

@@ -13,7 +13,7 @@ pub fn encode_sml_l(literal_len: u32) -> u32 {
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_sml_l(opu: u32) -> u32 {
     let literal_len = opu.get_bits(0, 4);
@@ -36,7 +36,7 @@ pub fn encode_lrg_l(literal_len: u32) -> u32 {
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_lrg_l(opu: u32) -> u32 {
     debug_assert_eq!(opu.get_bits(0, 8), 0xE0);
@@ -59,7 +59,7 @@ pub fn encode_sml_m(match_len: u32) -> u32 {
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_sml_m(opu: u32) -> u32 {
     let match_len = opu.get_bits(0, 4);
@@ -82,7 +82,7 @@ pub fn encode_lrg_m(match_len: u32) -> u32 {
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_lrg_m(opu: u32) -> u32 {
     debug_assert_eq!(opu.get_bits(0, 8), 0xF0);
@@ -109,7 +109,7 @@ pub fn encode_pre_d(literal_len: u32, match_len: u32) -> u32 {
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_pre_d(opu: u32) -> (u32, u32) {
     debug_assert_eq!(opu.get_bits(0, 3), 0x6);
@@ -141,7 +141,7 @@ pub fn encode_sml_d(literal_len: u32, match_len: u32, match_distance: u32) -> u3
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_sml_d(opu: u32) -> (u32, u32, u32) {
     let mut match_distance = 0;
@@ -169,15 +169,15 @@ pub fn encode_med_d(literal_len: u32, match_len: u32, match_distance: u32) -> u3
     debug_assert!(match_distance <= 0x3FFF);
     let match_len = match_len - 0x03;
     let mut opu = 0;
-    opu.set_bits(0, 3, (match_len as u32).get_bits(2, 3));
-    opu.set_bits(3, 2, literal_len as u32);
+    opu.set_bits(0, 3, (match_len).get_bits(2, 3));
+    opu.set_bits(3, 2, literal_len);
     opu.set_bits(5, 3, 0x5);
-    opu.set_bits(8, 2, (match_len as u32).get_bits(0, 2));
-    opu.set_bits(10, 14, match_distance as u32);
+    opu.set_bits(8, 2, (match_len).get_bits(0, 2));
+    opu.set_bits(10, 14, match_distance);
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_med_d(opu: u32) -> (u32, u32, u32) {
     let mut match_len = 0;
@@ -213,7 +213,7 @@ pub fn encode_lrg_d(literal_len: u32, match_len: u32, match_distance: u32) -> u3
     opu
 }
 
-#[allow(clippy::clippy::let_and_return)]
+#[allow(clippy::let_and_return)]
 #[inline(always)]
 pub fn decode_lrg_d(opu: u32) -> (u32, u32, u32) {
     debug_assert_eq!(opu.get_bits(0, 3), 0x7);

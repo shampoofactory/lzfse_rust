@@ -2,7 +2,7 @@ use std::mem;
 
 pub const ACCUM_MAX: isize = mem::size_of::<usize>() as isize * 8 - 1;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Accum {
     pub(super) u: usize,
     pub(super) bits: isize,
@@ -25,13 +25,6 @@ impl Accum {
     //     debug_assert!(self.bits as usize <= ACCUM_MASK.len());
     //     self.u &= (1 << self.bits) - 1;
     // }
-}
-
-impl Default for Accum {
-    #[inline(always)]
-    fn default() -> Self {
-        Self { u: 0, bits: 0 }
-    }
 }
 
 #[cfg(target_pointer_width = "64")]

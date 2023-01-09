@@ -100,7 +100,7 @@ pub unsafe fn write_match_alt(src: *const u8, dst: *mut u8, dst_end: *mut u8, di
         *dst.add(2) = u;
         *dst.add(3) = v;
         ptr::copy_nonoverlapping(src.add(OFFSET[distance] as usize), dst.add(4), 4);
-        DELTA[distance as usize] as usize
+        DELTA[distance] as usize
     } else {
         ptr::copy_nonoverlapping(src, dst, 8);
         8
