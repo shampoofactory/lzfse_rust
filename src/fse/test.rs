@@ -486,7 +486,7 @@ fn mutate_rng_1() -> crate::Result<()> {
                 break;
             }
             let m = m.max(3);
-            let d = d.min(n_raw_bytes).max(1);
+            let d = d.clamp(1, n_raw_bytes);
             lmds.push(Lmd::new(l, m, d));
             index += l as usize;
             n_raw_bytes += m;
@@ -527,7 +527,7 @@ fn mutate_rng_2() -> crate::Result<()> {
                 break;
             }
             let m = m.max(3);
-            let d = d.min(n_raw_bytes).max(1);
+            let d = d.clamp(1, n_raw_bytes);
             lmds.push(Lmd::new(l, m, d));
             index += l as usize;
             n_raw_bytes += m;
