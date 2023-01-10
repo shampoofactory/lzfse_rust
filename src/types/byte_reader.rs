@@ -1,4 +1,4 @@
-use crate::bits::AsBitSrc;
+use crate::bits::BitSrc;
 use crate::ops::{Len, PeekData, Skip};
 
 use super::short_buffer::ShortBuffer;
@@ -12,7 +12,7 @@ use std::io;
 pub trait ByteReader<'a>: Len + PeekData + Skip {
     const VIEW_LIMIT: usize;
 
-    type View: 'a + AsBitSrc + Copy + ShortBuffer;
+    type View: 'a + BitSrc + Copy + ShortBuffer;
 
     fn fill(&mut self) -> io::Result<()>;
 

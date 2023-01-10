@@ -1,4 +1,4 @@
-use crate::bits::{AsBitSrc, BitSrc};
+use crate::bits::BitSrc;
 use crate::kit::{CopyType, CopyTypeLong, W00, WIDE};
 use crate::ops::{CopyLong, CopyShort, Len, Limit, PeekData, Pos, ReadData, ShortLimit, Skip};
 use crate::types::{Idx, ShortBuffer};
@@ -133,15 +133,6 @@ impl<'a, T: Copy + RingType> ShortBuffer for RingView<'a, T> {
         let index = self.head % T::RING_SIZE as usize;
         let src = unsafe { self.ring_ptr.add(index) };
         unsafe { slice::from_raw_parts(src, len) }
-    }
-}
-
-impl<'a, T: Copy + RingType> AsBitSrc for RingView<'a, T> {
-    type BitSrc = Self;
-
-    #[inline(always)]
-    fn as_bit_src(self) -> Self {
-        self
     }
 }
 

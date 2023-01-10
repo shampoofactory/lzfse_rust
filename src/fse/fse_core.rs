@@ -1,4 +1,4 @@
-use crate::bits::{AsBitSrc, BitReader, BitSrc};
+use crate::bits::{BitReader, BitSrc};
 use crate::decode::Take;
 use crate::kit::W00;
 use crate::lmd::{LiteralLen, LmdPack, MatchDistanceUnpack, MatchLen};
@@ -61,32 +61,29 @@ impl FseCore {
 
     pub fn load_literals<I>(&mut self, mut src: I) -> crate::Result<u32>
     where
-        I: AsBitSrc + Copy + ShortBuffer,
+        I: BitSrc + Copy + ShortBuffer,
     {
         let payload = src.take(self.n_literal_payload_bytes())?;
-        let bits = payload.as_bit_src();
-        self.literals.load(bits, &self.decoder, self.block.literal())?;
+        self.literals.load(payload, &self.decoder, self.block.literal())?;
         Ok(self.n_literal_payload_bytes())
     }
 
     pub fn load_lmds<I>(&mut self, mut src: I) -> crate::Result<u32>
     where
-        I: AsBitSrc + Copy + ShortBuffer,
+        I: BitSrc + Copy + ShortBuffer,
     {
         let payload = src.take(self.n_lmd_payload_bytes())?;
-        let bits = payload.as_bit_src();
-        self.lmds.load(bits, &self.decoder, self.block.lmd())?;
+        self.lmds.load(payload, &self.decoder, self.block.lmd())?;
         Ok(self.n_lmd_payload_bytes())
     }
 
     pub fn decode<O, I>(&mut self, dst: &mut O, mut src: I) -> crate::Result<u32>
     where
         O: LzWriter,
-        I: AsBitSrc + Copy + ShortBuffer,
+        I: BitSrc + Copy + ShortBuffer,
     {
         let payload = src.take(self.n_lmd_payload_bytes())?;
-        let bits = payload.as_bit_src();
-        self.decode_internal(dst, bits)?;
+        self.decode_internal(dst, payload)?;
         Ok(self.n_lmd_payload_bytes())
     }
 
