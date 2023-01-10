@@ -1,34 +1,39 @@
-use std::mem;
-
-pub const ACCUM_MAX: isize = mem::size_of::<usize>() as isize * 8 - 1;
-
-#[derive(Copy, Clone, Default)]
-pub struct Accum {
-    pub(super) u: usize,
-    pub(super) bits: isize,
+/// Zero the most significant `n_bits` of `lhs`.
+/// Results when `n_bits >= size_of::<usize>()` are undefined.
+#[cfg(target_feature = "bmi2")]
+#[inline(always)]
+pub fn mask(lhs: usize, n_bits: usize) -> usize {
+    // Leverage BMI2 BZHI instructions.
+    mask_shift(lhs, n_bits)
 }
 
-impl Accum {
-    #[inline(always)]
-    pub fn new(u: usize, bits: isize) -> Self {
-        Self { u, bits }
-    }
+#[cfg(not(target_feature = "bmi2"))]
+#[inline(always)]
+pub fn mask(lhs: usize, n_bits: usize) -> usize {
+    // Avoid slow x86/ x64 SHL instructions using a lookup table.
+    // Assumes that the function is invoked with sufficient regularity to maintain table data
+    // entries in L1 cache.
+    mask_table(lhs, n_bits)
+}
 
-    #[inline(always)]
-    pub unsafe fn mask(&mut self) {
-        debug_assert!(self.bits as usize <= ACCUM_MASK.len());
-        self.u &= ACCUM_MASK.get_unchecked(self.bits as usize);
-    }
+#[allow(dead_code)]
+#[inline(always)]
+fn mask_table(lhs: usize, n_bits: usize) -> usize {
+    lhs & MASK_TABLE[n_bits & (MASK_TABLE_LEN - 1)]
+}
 
-    // #[inline(always)]
-    // pub unsafe fn mask(&mut self) {
-    //     debug_assert!(self.bits as usize <= ACCUM_MASK.len());
-    //     self.u &= (1 << self.bits) - 1;
-    // }
+#[allow(dead_code)]
+#[inline(always)]
+fn mask_shift(lhs: usize, n_bits: usize) -> usize {
+    // TODO consider `unchecked_shl` when stable.
+    lhs & ((1 << n_bits) - 1)
 }
 
 #[cfg(target_pointer_width = "64")]
-pub const ACCUM_MASK: [usize; 65] = [
+pub const MASK_TABLE_LEN: usize = 64;
+
+#[cfg(target_pointer_width = "64")]
+pub const MASK_TABLE: [usize; MASK_TABLE_LEN] = [
     0x0000_0000_0000_0000,
     0x0000_0000_0000_0001,
     0x0000_0000_0000_0003,
@@ -93,11 +98,13 @@ pub const ACCUM_MASK: [usize; 65] = [
     0x1FFF_FFFF_FFFF_FFFF,
     0x3FFF_FFFF_FFFF_FFFF,
     0x7FFF_FFFF_FFFF_FFFF,
-    0xFFFF_FFFF_FFFF_FFFF,
 ];
 
 #[cfg(target_pointer_width = "32")]
-pub const ACCUM_MASK: [usize; 33] = [
+pub const MASK_TABLE_LEN: usize = 32;
+
+#[cfg(target_pointer_width = "32")]
+pub const MASK_TABLE: [usize; MASK_TABLE_LEN] = [
     0x0000_0000,
     0x0000_0001,
     0x0000_0003,
@@ -130,18 +137,18 @@ pub const ACCUM_MASK: [usize; 33] = [
     0x1FFF_FFFF,
     0x3FFF_FFFF,
     0x7FFF_FFFF,
-    0xFFFF_FFFF,
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::mem;
 
-    #[allow(clippy::needless_range_loop)]
     #[test]
-    fn mask() {
-        for i in 0..mem::size_of::<usize>() * 8 {
-            assert_eq!(ACCUM_MASK[i], (1 << i) - 1);
+    fn bit_mask() {
+        let lhs = (-1isize) as usize;
+        for n_bits in 0..mem::size_of::<usize>() * 8 {
+            assert_eq!(mask_shift(lhs, n_bits), mask_table(lhs, n_bits));
         }
     }
 }

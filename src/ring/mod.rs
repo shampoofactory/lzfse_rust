@@ -1,5 +1,4 @@
 mod object;
-mod ring_bits;
 mod ring_block;
 mod ring_box;
 mod ring_lz_writer;
@@ -10,7 +9,6 @@ mod ring_type;
 mod ring_view;
 
 pub use object::{Ring, OVERMATCH_LEN};
-pub use ring_bits::RingBits;
 pub use ring_block::RingBlock;
 pub use ring_box::RingBox;
 pub use ring_lz_writer::RingLzWriter;

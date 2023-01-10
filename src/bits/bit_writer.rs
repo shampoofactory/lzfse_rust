@@ -1,11 +1,13 @@
-use super::accum::{Accum, ACCUM_MAX};
 use super::bit_dst::BitDst;
 
 use std::io;
 use std::mem;
 
+pub const ACCUM_MAX: isize = mem::size_of::<usize>() as isize * 8 - 1;
+
 pub struct BitWriter<'a, T: BitDst> {
-    accum: Accum,
+    accum_data: usize,
+    accum_bits: isize,
     inner: &'a mut T,
 }
 
@@ -13,20 +15,20 @@ impl<'a, T: BitDst> BitWriter<'a, T> {
     #[inline(always)]
     pub fn new(inner: &'a mut T, len: usize) -> io::Result<Self> {
         inner.allocate(len + mem::size_of::<usize>())?;
-        Ok(Self { inner, accum: Accum::default() })
+        Ok(Self { accum_data: 0, accum_bits: 0, inner })
     }
 
     #[inline(always)]
     pub fn flush(&mut self) {
-        debug_assert!(0 <= self.accum.bits);
-        debug_assert!(self.accum.bits <= ACCUM_MAX);
-        let n_bytes = self.accum.bits as usize / 8;
-        unsafe { self.inner.push_bytes_unchecked(self.accum.u, n_bytes) };
-        self.accum.u >>= n_bytes * 8;
-        self.accum.bits -= n_bytes as isize * 8;
-        debug_assert!(0 <= self.accum.bits);
-        debug_assert!(self.accum.bits <= 7);
-        debug_assert!(self.accum.u >> self.accum.bits == 0);
+        debug_assert!(0 <= self.accum_bits);
+        debug_assert!(self.accum_bits <= ACCUM_MAX);
+        let n_bytes = self.accum_bits as usize / 8;
+        unsafe { self.inner.push_bytes_unchecked(self.accum_data, n_bytes) };
+        self.accum_data >>= n_bytes * 8;
+        self.accum_bits -= n_bytes as isize * 8;
+        debug_assert!(0 <= self.accum_bits);
+        debug_assert!(self.accum_bits <= 7);
+        debug_assert!(self.accum_data >> self.accum_bits == 0);
     }
 
     /// # Safety
@@ -34,24 +36,24 @@ impl<'a, T: BitDst> BitWriter<'a, T> {
     /// * No more than `ACCUM_MAX - 7` bits in total are pushed without flushing.
     #[inline(always)]
     pub unsafe fn push_unchecked(&mut self, bits: usize, n_bits: usize) {
-        debug_assert!(0 <= self.accum.bits + n_bits as isize);
-        debug_assert!(self.accum.bits + n_bits as isize <= ACCUM_MAX);
+        debug_assert!(0 <= self.accum_bits + n_bits as isize);
+        debug_assert!(self.accum_bits + n_bits as isize <= ACCUM_MAX);
         debug_assert!(bits >> n_bits == 0);
-        self.accum.u |= bits << self.accum.bits;
-        self.accum.bits += n_bits as isize;
+        self.accum_data |= bits << self.accum_bits;
+        self.accum_bits += n_bits as isize;
     }
 
     #[inline(always)]
     pub fn finalize(mut self) -> io::Result<usize> {
-        assert!(0 <= self.accum.bits);
-        assert!(self.accum.bits <= ACCUM_MAX);
-        let n_bytes = (self.accum.bits as usize + 7) / 8;
-        unsafe { self.inner.push_bytes_unchecked(self.accum.u, n_bytes) };
-        self.accum.bits -= n_bytes as isize * 8;
-        debug_assert!(-7 <= self.accum.bits);
-        debug_assert!(self.accum.bits <= 0);
+        assert!(0 <= self.accum_bits);
+        assert!(self.accum_bits <= ACCUM_MAX);
+        let n_bytes = (self.accum_bits as usize + 7) / 8;
+        unsafe { self.inner.push_bytes_unchecked(self.accum_data, n_bytes) };
+        self.accum_bits -= n_bytes as isize * 8;
+        debug_assert!(-7 <= self.accum_bits);
+        debug_assert!(self.accum_bits <= 0);
         self.inner.finalize()?;
-        Ok(-self.accum.bits as usize)
+        Ok(-self.accum_bits as usize)
     }
 }
 

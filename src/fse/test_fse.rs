@@ -1,4 +1,4 @@
-use crate::bits::{BitReader, BitWriter, ByteBits};
+use crate::bits::{BitReader, BitWriter};
 
 use test_kit::{Rng, Seq};
 
@@ -55,7 +55,7 @@ impl Buddy {
         decoder::build_u_table(&self.weights, &mut self.decode_table);
         self.dec.clear();
         self.dec.resize(self.bytes.len(), 0);
-        let mut rdr = BitReader::new(ByteBits::new(&self.enc), self.off)?;
+        let mut rdr = BitReader::new(self.enc.as_slice(), self.off)?;
         let mut state = self.state as usize;
         for b in self.dec.iter_mut() {
             debug_assert!(state < N_STATES as usize);

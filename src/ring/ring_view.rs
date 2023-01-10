@@ -1,15 +1,15 @@
-use crate::bits::AsBitSrc;
+use crate::bits::{AsBitSrc, BitSrc};
 use crate::kit::{CopyType, CopyTypeLong, W00, WIDE};
 use crate::ops::{CopyLong, CopyShort, Len, Limit, PeekData, Pos, ReadData, ShortLimit, Skip};
 use crate::types::{Idx, ShortBuffer};
 
 use super::object::Ring;
+use super::ring_size::RingSize;
 use super::ring_type::RingType;
-use super::{ring_size::RingSize, RingBits};
 
 use std::marker::PhantomData;
-use std::ptr;
 use std::slice;
+use std::{mem, ptr};
 
 /// Immutable ring view.
 #[derive(Copy, Clone)]
@@ -137,10 +137,19 @@ impl<'a, T: Copy + RingType> ShortBuffer for RingView<'a, T> {
 }
 
 impl<'a, T: Copy + RingType> AsBitSrc for RingView<'a, T> {
-    type BitSrc = RingBits<'a, T>;
+    type BitSrc = Self;
 
     #[inline(always)]
-    fn as_bit_src(&self) -> Self::BitSrc {
-        RingBits::new(*self)
+    fn as_bit_src(self) -> Self {
+        self
+    }
+}
+
+impl<'a, T: Copy + RingType> BitSrc for RingView<'a, T> {
+    #[inline(always)]
+    unsafe fn read_bytes(&self, index: isize) -> usize {
+        assert!(mem::size_of::<usize>() <= WIDE);
+        let index = index as usize % T::RING_SIZE as usize;
+        self.ring_ptr.add(index).cast::<usize>().read_unaligned().to_le()
     }
 }

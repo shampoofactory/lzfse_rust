@@ -178,7 +178,6 @@ impl Default for Literals {
 
 #[cfg(test)]
 mod tests {
-    use crate::bits::ByteBits;
     use crate::fse::Weights;
 
     use test_kit::{Rng, Seq};
@@ -221,7 +220,7 @@ mod tests {
 
         fn decode(&mut self) -> io::Result<()> {
             self.decoder.init(&self.weights);
-            self.dst.load(ByteBits::new(&self.enc), &self.decoder, &self.param)?;
+            self.dst.load(self.enc.as_slice(), &self.decoder, &self.param)?;
             Ok(())
         }
 
