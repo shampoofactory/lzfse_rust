@@ -31,9 +31,9 @@ impl Lmds {
         let mut reader = BitReader::new(src, param.bits() as usize)?;
         let state = param.state();
         let mut state = (
-            unsafe { decoder::L::new_unchecked(state[0] as usize) },
-            unsafe { decoder::M::new_unchecked(state[1] as usize) },
-            unsafe { decoder::D::new_unchecked(state[2] as usize) },
+            decoder::L::new(state[0] as usize),
+            decoder::M::new(state[1] as usize),
+            decoder::D::new(state[2] as usize),
         );
         let n_lmds = param.num() as usize;
         debug_assert!(n_lmds <= LMDS_PER_BLOCK as usize);

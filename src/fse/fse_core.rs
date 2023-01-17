@@ -92,9 +92,9 @@ impl FseCore {
         let mut reader = BitReader::new(src, self.block.lmd().bits() as usize)?;
         let state = self.block.lmd().state();
         let mut state = (
-            unsafe { decoder::L::new_unchecked(state[0] as usize) },
-            unsafe { decoder::M::new_unchecked(state[1] as usize) },
-            unsafe { decoder::D::new_unchecked(state[2] as usize) },
+            decoder::L::new(state[0] as usize),
+            decoder::M::new(state[1] as usize),
+            decoder::D::new(state[2] as usize),
         );
         let mut literal_index = 0;
         let mut n_match_bytes = 0;

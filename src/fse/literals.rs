@@ -53,10 +53,10 @@ impl Literals {
         let mut reader = BitReader::new(src, param.bits() as usize)?;
         let state = param.state();
         let mut state = (
-            unsafe { decoder::U::new_unchecked(state[0] as usize) },
-            unsafe { decoder::U::new_unchecked(state[1] as usize) },
-            unsafe { decoder::U::new_unchecked(state[2] as usize) },
-            unsafe { decoder::U::new_unchecked(state[3] as usize) },
+            decoder::U::new(state[0] as usize),
+            decoder::U::new(state[1] as usize),
+            decoder::U::new(state[2] as usize),
+            decoder::U::new(state[3] as usize),
         );
         let ptr = self.0.as_mut_ptr().cast::<u8>();
         let n_literals = param.num() as usize;
