@@ -18,10 +18,10 @@ pub struct Decoder(
 
 impl Decoder {
     pub fn init(&mut self, weights: &Weights) {
-        build_v_table(weights.ls(), &L_EXTRA_BITS, &L_BASE_VALUE, &mut self.0);
-        build_v_table(weights.ms(), &M_EXTRA_BITS, &M_BASE_VALUE, &mut self.1);
-        build_v_table(weights.ds(), &D_EXTRA_BITS, &D_BASE_VALUE, &mut self.2);
-        build_u_table(weights.us(), &mut self.3);
+        build_v_table(weights.l_block(), &L_EXTRA_BITS, &L_BASE_VALUE, &mut self.0);
+        build_v_table(weights.m_block(), &M_EXTRA_BITS, &M_BASE_VALUE, &mut self.1);
+        build_v_table(weights.d_block(), &D_EXTRA_BITS, &D_BASE_VALUE, &mut self.2);
+        build_u_table(weights.u_block(), &mut self.3);
     }
 
     /// # Safety

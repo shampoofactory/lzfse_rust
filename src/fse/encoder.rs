@@ -19,10 +19,10 @@ pub struct Encoder(
 impl Encoder {
     #[inline(always)]
     pub fn init(&mut self, weights: &Weights) {
-        build_e_table(weights.ls(), L_STATES, &mut self.0);
-        build_e_table(weights.ms(), M_STATES, &mut self.1);
-        build_e_table(weights.ds(), D_STATES, &mut self.2);
-        build_e_table(weights.us(), U_STATES, &mut self.3);
+        build_e_table(weights.l_block(), L_STATES, &mut self.0);
+        build_e_table(weights.m_block(), M_STATES, &mut self.1);
+        build_e_table(weights.d_block(), D_STATES, &mut self.2);
+        build_e_table(weights.u_block(), U_STATES, &mut self.3);
     }
 
     /// # Safety

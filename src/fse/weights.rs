@@ -161,25 +161,25 @@ impl Weights {
     }
 
     #[inline(always)]
-    pub fn ls(&self) -> &[u16] {
+    pub fn l_block(&self) -> &[u16] {
         debug_assert!(total_weights(&self.0[L_RANGE]) <= L_STATES);
         &self.0[L_RANGE]
     }
 
     #[inline(always)]
-    pub fn ms(&self) -> &[u16] {
+    pub fn m_block(&self) -> &[u16] {
         debug_assert!(total_weights(&self.0[M_RANGE]) <= M_STATES);
         &self.0[M_RANGE]
     }
 
     #[inline(always)]
-    pub fn ds(&self) -> &[u16] {
+    pub fn d_block(&self) -> &[u16] {
         debug_assert!(total_weights(&self.0[D_RANGE]) <= D_STATES);
         &self.0[D_RANGE]
     }
 
     #[inline(always)]
-    pub fn us(&self) -> &[u16] {
+    pub fn u_block(&self) -> &[u16] {
         debug_assert!(total_weights(&self.0[U_RANGE]) <= U_STATES);
         &self.0[U_RANGE]
     }
