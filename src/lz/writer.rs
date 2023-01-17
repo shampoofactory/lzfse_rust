@@ -158,7 +158,6 @@ impl LzWriter for Vec<u8> {
             // Likely
             let src_index = dst_index - distance;
             self.reserve(dst_index + len as usize + 32);
-            unsafe { self.set_len(dst_index + len as usize) };
             let src = unsafe { self.as_ptr().add(src_index) };
             let dst = unsafe { self.as_mut_ptr().add(dst_index) };
             let dst_end = unsafe { dst.add(len as usize) };
@@ -172,6 +171,7 @@ impl LzWriter for Vec<u8> {
             } else {
                 unsafe { object::write_match_x(src, dst, dst_end, distance) };
             };
+            unsafe { self.set_len(dst_index + len as usize) };
             Ok(())
         } else {
             // Unlikely
