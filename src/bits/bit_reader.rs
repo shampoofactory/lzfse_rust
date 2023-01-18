@@ -23,7 +23,7 @@ impl<T: BitSrc> BitReader<T> {
         assert!(off <= 7);
         assert!(8 <= inner.len());
         assert!(inner.len() <= isize::MAX as usize);
-        let index = inner.len() as isize - 8;
+        let index = inner.len() as isize - mem::size_of::<usize>() as isize;
         let accum_data = unsafe { inner.read_bytes(index) };
         let accum_bits = mem::size_of::<usize>() as isize * 8 - off as isize;
         if off != 0 && accum_data >> accum_bits != 0 {
