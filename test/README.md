@@ -98,7 +98,7 @@ The library exposes:
 * decode readers: `LzfseReaderBytes`, `LzfseReader`
 
 We need to ensure that the compression and decompression methods work as intended and that data corruption does not occur.
-Additionally the library is designed to validate and reject input data; it should not hang, segfault, panic or break in a any other fashion.
+Additionally the library is designed to validate and reject input data; it should not hang, segfault, panic or break in any other fashion.
 Internally the code base is packed with debug statements that trip on invalid states, these are hard errors and should NOT occur.
 
 Quick tests.
