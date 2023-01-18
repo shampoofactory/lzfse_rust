@@ -203,7 +203,7 @@ create_state_struct!(
 create_state_struct!(U, 0usize, U_STATES as usize, FseErrorKind::BadLiteralState.into());
 
 #[derive(Copy, Clone, Debug, Default)]
-#[repr(C, align(8))]
+#[repr(align(8))]
 pub struct VEntry {
     k: u8,
     v_bits: u8,
@@ -221,7 +221,6 @@ impl VEntry {
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(align(4))]
-#[repr(C)]
 pub struct UEntry {
     k: u8,
     symbol: u8,
