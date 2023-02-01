@@ -26,8 +26,6 @@ use std::io;
 
 /// Encode `src` into `dst` returning the number of bytes written into `dst`.
 ///
-/// Due to internal mechanics `src` is cannot exceed `i32::MAX` bytes in length.
-///
 /// This is a convenience method that constructs a temporary [LzfseEncoder] instance and then calls
 /// [encode_bytes](LzfseEncoder::encode_bytes). For multiple invocations, creating and reusing a
 /// [LzfseEncoder] instance is more efficient.

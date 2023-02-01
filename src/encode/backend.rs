@@ -10,9 +10,8 @@ pub trait Backend {
 
     /// Initialize the backend.
     ///
-    /// `len` is the input length with None indicating that either the exact value is unknown or
-    /// is larger than `u32::MAX`.
-    fn init<O: ShortWriter>(&mut self, dst: &mut O, len: Option<u32>) -> io::Result<()>;
+    /// `len` is the input length with None indicating that either the exact value is unknown.
+    fn init<O: ShortWriter>(&mut self, dst: &mut O, len: Option<usize>) -> io::Result<()>;
 
     /// Push a literal block. Literals should be coalesced into the largest possible block size,
     /// failure to do so will reduce the compression ratio or may cause the backend to panic.

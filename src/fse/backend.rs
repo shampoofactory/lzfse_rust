@@ -58,7 +58,7 @@ impl Backend for FseBackend {
     type Type = Fse;
 
     #[inline(always)]
-    fn init<O: ShortWriter>(&mut self, _: &mut O, _: Option<u32>) -> io::Result<()> {
+    fn init<O: ShortWriter>(&mut self, _: &mut O, _: Option<usize>) -> io::Result<()> {
         self.buffer.reset();
         Ok(())
     }

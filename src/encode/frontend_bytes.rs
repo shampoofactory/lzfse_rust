@@ -1,7 +1,6 @@
 use crate::base::MagicBytes;
-use crate::error::Error;
 use crate::fse::FseBackend;
-use crate::lmd::MatchDistance;
+use crate::lmd::{DMax, MatchDistance};
 use crate::match_kit;
 use crate::raw::{self, RAW_HEADER_SIZE};
 use crate::types::{Idx, ShortWriter};
@@ -10,33 +9,29 @@ use crate::vn::VnBackend;
 use super::backend::Backend;
 use super::backend_type::BackendType;
 use super::constants::*;
-use super::history::{History, HistoryTable, UIdx};
+use super::history::{History, HistoryTable, Item};
 use super::match_object::Match;
 use super::match_unit::MatchUnit;
 
 use std::io;
 use std::mem;
 
+// Fixed constant. Do NOT change.
+const SLACK: u32 = 0x1000_0000;
+
 pub struct FrontendBytes<'a> {
     table: &'a mut HistoryTable,
-    bytes: &'a [u8],
+    src: &'a [u8],
+    block: &'a [u8],
     pending: Match,
-    literal_idx: Idx,
+    literal_index: u32,
+    index: u32,
 }
-
-// Implementation notes.
-//
-// `i32::MAX` limit we can work around by implementing a sliding `bytes` window paired with sliding
-// history values.
 
 impl<'a> FrontendBytes<'a> {
     #[inline(always)]
-    pub fn new(table: &'a mut HistoryTable, bytes: &'a [u8]) -> crate::Result<Self> {
-        if bytes.len() > i32::MAX as usize {
-            Err(Error::BufferOverflow)
-        } else {
-            Ok(Self { table, bytes, pending: Match::default(), literal_idx: Idx::default() })
-        }
+    pub fn new(table: &'a mut HistoryTable, src: &'a [u8]) -> Self {
+        Self { table, src, block: &[], pending: Match::default(), literal_index: 0, index: 0 }
     }
 
     #[inline(always)]
@@ -55,7 +50,7 @@ impl<'a> FrontendBytes<'a> {
     {
         // Select.
         self.flush_select(backend, dst)?;
-        debug_assert_eq!(usize::from(self.literal_idx), self.bytes.len());
+        debug_assert_eq!(self.literal_index as usize, self.src.len());
         // Eos.
         dst.write_short_u32(MagicBytes::Eos.into())?;
         dst.flush(true)?;
@@ -66,48 +61,54 @@ impl<'a> FrontendBytes<'a> {
     where
         O: ShortWriter,
     {
-        debug_assert!(self.literal_idx.is_zero());
-        let len = self.bytes.len();
+        debug_assert_eq!(self.literal_index, 0);
+        let len = self.src.len();
         if len > VN_CUTOFF as usize {
-            self.flush_backend::<_, _, true>(backend, dst)
+            self.flush_backend(backend, dst)
         } else if len > RAW_CUTOFF as usize {
-            self.flush_backend::<_, _, false>(&mut VnBackend::default(), dst)
+            self.flush_backend(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
         }
     }
 
-    fn flush_backend<B, O, const F: bool>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    fn flush_backend<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
     {
-        debug_assert!(self.literal_idx.is_zero());
-        let len = self.bytes.len();
-        backend.init(dst, Some(len as u32))?;
+        debug_assert_eq!(self.literal_index, 0);
+        let src_len = self.src.len();
+        backend.init(dst, Some(src_len))?;
         let mark = dst.pos();
         self.finalize(backend, dst)?;
-        let dst_len = (dst.pos() - mark) as u32;
-        if !F && dst_len < len as u32 + RAW_HEADER_SIZE {
-            return Ok(());
+        if src_len < RAW_LIMIT as usize {
+            let dst_len = (dst.pos() - mark) as usize;
+            if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
+                // The compressed length is NOT shorter than raw block length AND we have a
+                // successful truncate, so we proceed to rework as a raw block.
+                self.flush_raw(dst)?;
+            }
         }
-        dst.truncate(mark);
-        self.flush_raw(dst)
+        Ok(())
     }
 
     fn flush_raw<O>(&mut self, dst: &mut O) -> io::Result<()>
     where
         O: ShortWriter,
     {
-        raw::raw_compress(dst, self.bytes)?;
-        self.literal_idx = Idx::new(self.bytes.len() as u32);
+        assert!(self.src.len() <= i32::MAX as usize);
+        raw::raw_compress(dst, self.src)?;
+        self.literal_index = self.src.len() as u32;
         Ok(())
     }
 
     fn init(&mut self) {
-        self.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
+        self.table.reset();
+        self.block = &[];
         self.pending = Match::default();
-        self.literal_idx = Idx::default();
+        self.literal_index = 0;
+        self.index = 0;
     }
 
     fn finalize<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
@@ -115,71 +116,81 @@ impl<'a> FrontendBytes<'a> {
         B: Backend,
         O: ShortWriter,
     {
-        self.match_short(backend, dst)?;
+        self.match_blocks(backend, dst)?;
         self.flush_pending(backend, dst)?;
         self.flush_literals(backend, dst)?;
         backend.finalize(dst)?;
         Ok(())
     }
 
-    // #[inline(always)]
-    fn match_short<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    fn match_blocks<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
     {
-        debug_assert!(self.bytes.len() <= i32::MAX as usize);
-        debug_assert!(usize::from(self.literal_idx) <= self.bytes.len());
-        let len = self.bytes.len() as u32;
-        if len < 4 {
+        debug_assert!(self.is_init());
+        if self.src.len() < 4 {
             return Ok(());
         }
-        let mark = Idx::new(len - 3);
-        let mut idx = Idx::default();
+        loop {
+            if self.match_block(backend, dst)? {
+                break;
+            }
+            self.reposition(backend, dst)?;
+        }
+        Ok(())
+    }
+
+    fn match_block<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<bool>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        let mut index = self.index;
+        let is_eof = self.src.len() - index as usize <= i32::MAX as usize;
+        self.block = if is_eof { self.src } else { &self.src[..i32::MAX as usize] };
+        self.index = self.block.len() as u32 - if is_eof { 0 } else { SLACK } - 3;
+        assert!(index < self.index);
+        assert!(self.index as usize - 1 + mem::size_of::<u32>() <= self.block.len());
         loop {
             // Hot loop.
-            let u = unsafe { self.get_u32(idx) };
-            let item = UIdx::new(u, idx);
+            let val = unsafe { get_u32(self.block, index) };
+            let item = Item::new(val, index.into());
             let queue = self.table.push::<B::Type>(item);
             let incoming = unsafe { self.find_match::<B::Type>(queue, item) };
             if let Some(select) = self.pending.select::<GOOD_MATCH_LEN>(incoming) {
                 unsafe { self.push_match(backend, dst, select)? };
-                if self.literal_idx >= mark {
+                if self.literal_index >= self.index {
                     // Unlikely.
                     break;
                 }
-                idx += 1;
-                for _ in 0..(self.literal_idx - idx) {
-                    let u = unsafe { self.get_u32(idx) };
-                    let u_idx = UIdx::new(u, idx);
-                    self.table.push::<B::Type>(u_idx);
-                    idx += 1;
-                }
-                if idx >= mark {
+                index += 1;
+                index = unsafe { self.sync_history::<B::Type>(index) };
+                if index >= self.index {
                     // Unlikely
                     break;
                 }
             } else {
-                idx += 1;
-                if idx == mark {
+                index += 1;
+                if index == self.index {
                     // Unlikely
                     break;
                 }
             }
         }
-        debug_assert!(usize::from(self.literal_idx) <= self.bytes.len());
-        Ok(())
+        debug_assert!(self.literal_index as usize <= self.block.len());
+        Ok(is_eof)
     }
 
     #[inline(always)]
-    unsafe fn find_match<B>(&self, queue: History, item: UIdx) -> Match
+    unsafe fn find_match<B>(&self, queue: History, item: Item) -> Match
     where
         B: BackendType,
     {
         let mut m = Match::default();
         for &match_idx_val in queue.iter() {
             let distance = (item.idx - match_idx_val.idx) as u32;
-            debug_assert!(distance < CLAMP_INTERVAL * 3);
+            debug_assert!(distance <= Q2);
             if distance > B::MAX_MATCH_DISTANCE {
                 break;
             }
@@ -205,14 +216,14 @@ impl<'a> FrontendBytes<'a> {
     }
 
     #[inline(always)]
-    unsafe fn match_unit<M: MatchUnit>(&self, item: UIdx, match_item: UIdx) -> u32 {
+    unsafe fn match_unit<M: MatchUnit>(&self, item: Item, match_item: Item) -> u32 {
         debug_assert!(self.validate_match_items::<M>(item, match_item));
-        let len = M::match_us((item.u, match_item.u));
+        let len = M::match_us((item.val, match_item.val));
         if len == 4 {
             let index = usize::from(item.idx);
             let match_index = usize::from(match_item.idx);
-            let max = self.bytes.len() - index;
-            match_kit::fast_match_inc_unchecked(self.bytes, index, match_index, 4, max) as u32
+            let max = self.block.len() - index;
+            match_kit::fast_match_inc_unchecked(self.block, index, match_index, 4, max) as u32
         } else {
             len
         }
@@ -223,9 +234,9 @@ impl<'a> FrontendBytes<'a> {
         debug_assert!(self.validate_match_idxs::<M>(idx, match_idx));
         let index = usize::from(idx);
         let match_index = usize::from(match_idx);
-        let literal_len = (idx - self.literal_idx) as usize;
+        let literal_len = usize::from(idx) - self.literal_index as usize;
         let max = (literal_len).min(match_index);
-        match_kit::fast_match_dec_unchecked(self.bytes, index, match_index, max) as u32
+        match_kit::fast_match_dec_unchecked(self.block, index, match_index, max) as u32
     }
 
     #[inline(always)]
@@ -250,12 +261,12 @@ impl<'a> FrontendBytes<'a> {
     ) -> io::Result<()> {
         debug_assert!(self.validate_match::<B::Type>(m));
         let match_distance = MatchDistance::new_unchecked((m.idx - m.match_idx) as u32);
-        let literal_index = usize::from(self.literal_idx);
+        let literal_index = self.literal_index as usize;
         let match_index = usize::from(m.idx);
-        debug_assert!(literal_index <= self.bytes.len());
-        debug_assert!(match_index <= self.bytes.len());
-        let literals = self.bytes.get_unchecked(literal_index..match_index);
-        self.literal_idx = m.idx + m.match_len;
+        debug_assert!(literal_index <= self.block.len());
+        debug_assert!(match_index <= self.block.len());
+        let literals = self.block.get_unchecked(literal_index..match_index);
+        self.literal_index = u32::from(m.idx) + m.match_len;
         backend.push_match(dst, literals, m.match_len, match_distance)
     }
 
@@ -265,7 +276,8 @@ impl<'a> FrontendBytes<'a> {
         backend: &mut B,
         dst: &mut O,
     ) -> io::Result<()> {
-        let len = (self.bytes.len() - usize::from(self.literal_idx)) as u32;
+        debug_assert!(self.block.len() <= i32::MAX as usize);
+        let len = self.block.len() as u32 - self.literal_index;
         if len != 0 {
             unsafe { self.push_literals(backend, dst, len)? };
         }
@@ -280,37 +292,93 @@ impl<'a> FrontendBytes<'a> {
     ) -> io::Result<()> {
         debug_assert_ne!(len, 0);
         debug_assert_eq!(self.pending.match_len, 0);
-        debug_assert!(usize::from(self.literal_idx + len) <= self.bytes.len());
-        let index = usize::from(self.literal_idx);
-        let literals = self.bytes.get_unchecked(index..index + len as usize);
-        self.literal_idx += len;
+        debug_assert!(self.literal_index as usize + len as usize <= self.block.len());
+        let literal_index = self.literal_index as usize;
+        let literals = self.block.get_unchecked(literal_index..literal_index + len as usize);
+        self.literal_index += len;
         backend.push_literals(dst, literals)
     }
 
     #[inline(always)]
-    unsafe fn get_u32(&self, idx: Idx) -> u32 {
-        debug_assert!(usize::from(idx) + mem::size_of::<u32>() <= self.bytes.len());
-        self.bytes.as_ptr().add(usize::from(idx)).cast::<u32>().read_unaligned()
+    #[must_use]
+    unsafe fn sync_history<B: BackendType>(&mut self, mut index: u32) -> u32 {
+        while index < self.literal_index {
+            let val = get_u32(self.src, index);
+            let item = Item::new(val, index.into());
+            self.table.push::<B>(item);
+            index += 1;
+        }
+        index
+    }
+
+    fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        assert!(self.literal_index as usize - 1 + mem::size_of::<u32>() <= self.src.len());
+        self.index = unsafe { self.sync_history::<B::Type>(self.index) };
+        debug_assert!(self.literal_index <= self.index);
+        let delta = self.index - B::Type::MAX_MATCH_DISTANCE;
+        if self.literal_index < delta {
+            // We have literals that have have passed our buffer head without a match, we'll
+            // push them as is.
+            // We could push pending, but we don't, we discard it. The compression loss is
+            // negligible, at most we lose `GOOD_MATCH - 1` bytes in a situation with a low
+            // probability of occurrence. Instead we take the reduction in code complexity/
+            // size.
+            self.pending.match_len = 0;
+            unsafe { self.push_literals(backend, dst, delta - self.literal_index)? };
+        }
+        self.table.clamp_rebias(self.index.into(), delta);
+        self.src = &self.src[delta as usize..];
+        self.pending.idx -= delta;
+        self.pending.match_idx -= delta;
+        self.literal_index -= delta;
+        self.index -= delta;
+        Ok(())
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O, delta: u32) -> io::Result<()>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        unreachable!();
+    }
+
+    fn is_init(&self) -> bool {
+        self.block.is_empty()
+            && self.pending == Match::default()
+            && self.literal_index == 0
+            && self.index == 0
     }
 
     fn validate_match<B: BackendType>(&self, m: Match) -> bool {
         m.match_len != 0
             && m.match_len >= B::MATCH_UNIT
-            && self.literal_idx <= m.idx
+            && self.literal_index <= m.idx.into()
             && m.match_idx < m.idx
             && (m.idx - m.match_idx) as u32 <= B::MAX_MATCH_DISTANCE
-            && usize::from(m.idx + m.match_len) <= self.bytes.len()
+            && usize::from(m.idx + m.match_len) <= self.block.len()
     }
 
-    unsafe fn validate_match_items<M: MatchUnit>(&self, item: UIdx, match_item: UIdx) -> bool {
+    unsafe fn validate_match_items<M: MatchUnit>(&self, item: Item, match_item: Item) -> bool {
         self.validate_match_idxs::<M>(item.idx, match_item.idx)
-            && (item.u ^ self.get_u32(item.idx)) & M::MATCH_MASK == 0
-            && (match_item.u ^ self.get_u32(match_item.idx)) & M::MATCH_MASK == 0
+            && (item.val ^ get_u32(self.block, item.idx.into())) & M::MATCH_MASK == 0
+            && (match_item.val ^ get_u32(self.block, match_item.idx.into())) & M::MATCH_MASK == 0
     }
 
     fn validate_match_idxs<M: MatchUnit>(&self, idx: Idx, match_idx: Idx) -> bool {
-        match_idx < idx && usize::from(idx) <= self.bytes.len() - M::MATCH_UNIT as usize
+        match_idx < idx && usize::from(idx) <= self.block.len() - M::MATCH_UNIT as usize
     }
+}
+
+#[inline(always)]
+unsafe fn get_u32(bytes: &[u8], index: u32) -> u32 {
+    debug_assert!(index as usize + mem::size_of::<u32>() <= bytes.len());
+    bytes.as_ptr().add(index as usize).cast::<u32>().read_unaligned()
 }
 
 #[cfg(test)]
@@ -325,15 +393,15 @@ mod tests {
     fn match_short_zero_4() -> io::Result<()> {
         let mut table = HistoryTable::default();
         let bytes = vec![0u8; 4];
-        let mut frontend = FrontendBytes::new(&mut table, &bytes)?;
+        let mut frontend = FrontendBytes::new(&mut table, &bytes);
         let mut dst = Vec::default();
         let mut backend = DummyBackend::default();
-        frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
-        frontend.match_short(&mut backend, &mut dst).unwrap();
+        frontend.table.reset();
+        frontend.match_blocks(&mut backend, &mut dst).unwrap();
         if frontend.pending.match_len != 0 {
             unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
         }
-        let literal_len = frontend.bytes.len() as u32 - u32::from(frontend.literal_idx);
+        let literal_len = frontend.src.len() as u32 - frontend.literal_index;
         if literal_len > 0 {
             unsafe { frontend.push_literals(&mut backend, &mut dst, literal_len)? };
         }
@@ -352,13 +420,13 @@ mod tests {
         let mut backend = DummyBackend::default();
         for n in 5..bytes.len() {
             backend.init(&mut dst, None)?;
-            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n])?;
-            frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
-            frontend.match_short(&mut backend, &mut dst)?;
+            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n]);
+            frontend.table.reset();
+            frontend.match_blocks(&mut backend, &mut dst)?;
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
             }
-            assert_eq!(u32::from(frontend.literal_idx), frontend.bytes.len() as u32);
+            assert_eq!(frontend.literal_index, frontend.src.len() as u32);
             assert_eq!(backend.literals, [0]);
             assert_eq!(backend.lmds, vec![Lmd::<Dummy>::new(1, n as u32 - 1, 1)]);
         }
@@ -382,13 +450,13 @@ mod tests {
             for i in 0..4 {
                 bytes[n - 4 + i] = i as u8 + 1;
             }
-            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n])?;
-            frontend.table.reset_idx(Idx::default() - CLAMP_INTERVAL);
-            frontend.match_short(&mut backend, &mut dst)?;
+            let mut frontend = FrontendBytes::new(&mut table, &bytes[..n]);
+            frontend.table.reset();
+            frontend.match_blocks(&mut backend, &mut dst)?;
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
             }
-            assert_eq!(u32::from(frontend.literal_idx), frontend.bytes.len() as u32);
+            assert_eq!(frontend.literal_index, frontend.src.len() as u32);
             assert_eq!(backend.literals, [1, 2, 3, 4, 0]);
             assert_eq!(
                 backend.lmds,

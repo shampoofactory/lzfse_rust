@@ -11,13 +11,14 @@ use crate::vn::{Vn, VnBackend};
 use super::backend::Backend;
 use super::backend_type::BackendType;
 use super::constants::*;
-use super::history::{History, HistoryTable, UIdx};
+use super::history::{History, HistoryTable, Item};
 use super::match_object::Match;
 use super::match_unit::MatchUnit;
 
 use std::io::{self, Read};
+use std::mem;
 
-const OVERMATCH_LEN: u32 = 4 + ring::OVERMATCH_LEN as u32;
+const OVERMATCH_SLACK: u32 = mem::size_of::<u32>() as u32 + ring::OVERMATCH_LEN as u32;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Commit {
@@ -65,7 +66,7 @@ pub struct FrontendRing<'a, T> {
 // U   | Mark        | Fill mark.
 // X   | Undefined   | Undefined buffer data.
 // L   | Literal idx | Data below this point has been pushed into the backend.
-// I   | Working idx | Data below this point has been pushed into history but not the backend.
+// I   | Working idx | Data below this point has been pushed into history.
 // G   | Goldilocks  | G = RING_SIZE / 2..RING_SIZE / 2 + RING_BLK_SIZE
 // M   | Match       | Incoming match target.
 // R   | Match       | Incoming match source.
@@ -106,16 +107,16 @@ pub struct FrontendRing<'a, T> {
 
 impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     // Non flush max match len that doesn't overshoot our tail.
-    const MAX_MATCH_LEN: u32 = T::RING_SIZE / 2 - T::RING_BLK_SIZE - OVERMATCH_LEN;
+    const LONG_MATCH_LEN: u32 = T::RING_SIZE / 2 - T::RING_BLK_SIZE - OVERMATCH_SLACK;
 
     pub fn new(ring: Ring<'a, T>, table: &'a mut HistoryTable) -> Self {
         assert!(T::RING_BLK_SIZE.is_power_of_two());
         assert!(Vn::MAX_MATCH_DISTANCE < T::RING_SIZE / 2);
         assert!(Fse::MAX_MATCH_DISTANCE < T::RING_SIZE / 2);
-        assert!(T::RING_SIZE <= CLAMP_INTERVAL / 4);
+        assert!(T::RING_SIZE <= Q1 / 4);
         assert!(0x100 < T::RING_BLK_SIZE as usize);
         assert!(T::RING_BLK_SIZE <= T::RING_SIZE / 4);
-        assert!(OVERMATCH_LEN < T::RING_LIMIT);
+        assert!(OVERMATCH_SLACK < T::RING_LIMIT);
         let zero = Idx::default();
         Self {
             table,
@@ -216,7 +217,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             self.mark += T::RING_BLK_SIZE;
             return Ok(());
         }
-        self.commit(backend, dst, Commit::Fse)?;
+        self.commit(backend, dst, Commit::Fse, None)?;
         self.match_long(backend, dst)?;
         self.reposition_head();
         self.push_literal_overflow(backend, dst)?;
@@ -226,7 +227,13 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     #[inline(always)]
-    fn commit<B, O>(&mut self, backend: &mut B, dst: &mut O, commit: Commit) -> io::Result<()>
+    fn commit<B, O>(
+        &mut self,
+        backend: &mut B,
+        dst: &mut O,
+        commit: Commit,
+        len: Option<usize>,
+    ) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
@@ -234,7 +241,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         debug_assert!(self.commit == Commit::None || self.commit == commit);
         if self.commit == Commit::None {
             self.commit = commit;
-            backend.init(dst, None)?;
+            backend.init(dst, len)?;
         }
         Ok(())
     }
@@ -294,10 +301,10 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         debug_assert!(self.is_uncommitted());
         let len = (self.tail - self.idx) as u32;
         if len > VN_CUTOFF {
-            self.commit = Commit::Fse;
+            self.commit(backend, dst, Commit::Fse, None)?;
             self.flush_backend(backend, dst)
         } else if len > RAW_CUTOFF {
-            self.commit = Commit::Vn;
+            self.commit(backend, dst, Commit::Vn, Some(len as usize))?;
             self.flush_backend(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
@@ -310,16 +317,18 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         O: ShortWriter,
     {
         let mark = dst.pos();
-        let len = (self.tail - self.idx) as u32;
-        backend.init(dst, Some(len))?;
+        let src_len = (self.tail - self.idx) as usize;
         self.finalize(backend, dst)?;
-        let dst_len = (dst.pos() - mark) as u32;
-        let src_len = (self.tail - Idx::default()) as u32;
-        if dst_len < src_len + RAW_HEADER_SIZE {
-            return Ok(());
+        if src_len < RAW_LIMIT as usize {
+            let dst_len = (dst.pos() - mark) as usize;
+            // TODO test me
+            if src_len + RAW_HEADER_SIZE as usize <= dst_len && dst.truncate(mark) {
+                // The compressed length is NOT shorter than raw block length AND we have a
+                // successful truncate, so we proceed to rework as a raw block.
+                self.flush_raw(dst)?;
+            }
         }
-        dst.truncate(mark);
-        self.flush_raw(dst)
+        Ok(())
     }
 
     fn flush_raw<O>(&mut self, dst: &mut O) -> io::Result<()>
@@ -345,6 +354,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         Ok(())
     }
 
+    // Match non-final block.
     #[inline(always)]
     fn match_long<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
@@ -356,16 +366,16 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         self.idx = self.head + T::RING_SIZE / 2 + T::RING_BLK_SIZE;
         loop {
             // Hot loop.
-            let u = self.ring.get_u32(idx);
-            let u_idx = UIdx::new(u, idx);
+            let u = self.get_u32::<B::Type>(idx);
+            let u_idx = Item::new(u, idx);
             let queue = self.table.push::<B::Type>(u_idx);
-            let incoming = self.find_match::<B::Type, false>(queue, u_idx, Self::MAX_MATCH_LEN);
+            let incoming = self.find_match::<B::Type, false>(queue, u_idx, Self::LONG_MATCH_LEN);
             if let Some(select) = self.pending.select::<GOOD_MATCH_LEN>(incoming) {
                 unsafe { self.push_match(backend, dst, select)? };
                 idx += 1;
                 for _ in 0..(self.literal_idx - idx) {
-                    let u = self.ring.get_u32(idx);
-                    let u_idx = UIdx::new(u, idx);
+                    let u = self.get_u32::<B::Type>(idx);
+                    let u_idx = Item::new(u, idx);
                     self.table.push::<B::Type>(u_idx);
                     idx += 1;
                 }
@@ -386,6 +396,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         Ok(())
     }
 
+    // Match final block.
     #[inline(always)]
     fn match_short<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
@@ -401,8 +412,8 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         self.idx = self.tail - B::Type::MATCH_UNIT + 1;
         loop {
             // Hot loop.
-            let u = self.ring.get_u32(idx);
-            let u_idx = UIdx::new(u, idx);
+            let u = self.get_u32::<B::Type>(idx);
+            let u_idx = Item::new(u, idx);
             let queue = self.table.push::<B::Type>(u_idx);
             let max = (self.tail - idx) as u32;
             let incoming = self.find_match::<B::Type, true>(queue, u_idx, max);
@@ -410,13 +421,14 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
                 unsafe { self.push_match(backend, dst, select)? };
                 if self.literal_idx >= self.idx {
                     // Unlikely.
+                    // Final block complete, no need to populate history table.
                     self.idx = self.literal_idx;
                     break;
                 }
                 idx += 1;
                 for _ in 0..(self.literal_idx - idx) {
-                    let u = self.ring.get_u32(idx);
-                    let u_idx = UIdx::new(u, idx);
+                    let u = self.get_u32::<B::Type>(idx);
+                    let u_idx = Item::new(u, idx);
                     self.table.push::<B::Type>(u_idx);
                     idx += 1;
                 }
@@ -438,16 +450,16 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     #[inline(always)]
-    fn find_match<B, const F: bool>(&self, queue: History, item: UIdx, max: u32) -> Match
+    fn find_match<B, const F: bool>(&self, queue: History, item: Item, max: u32) -> Match
     where
         B: BackendType,
     {
         debug_assert!(B::MATCH_UNIT <= max);
-        debug_assert!(item.idx + max <= self.tail - if F { 0 } else { OVERMATCH_LEN });
+        debug_assert!(item.idx + max <= self.tail - if F { 0 } else { OVERMATCH_SLACK });
         let mut m = Match::default();
         for &match_idx_val in queue.iter() {
             let distance = (item.idx - match_idx_val.idx) as u32;
-            debug_assert!(distance < CLAMP_INTERVAL * 3);
+            debug_assert!(distance < Q3);
             if distance > B::MAX_MATCH_DISTANCE {
                 break;
             }
@@ -478,9 +490,9 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     #[inline(always)]
-    fn match_unit_coarse<M: MatchUnit>(&self, item: UIdx, match_item: UIdx, max: u32) -> u32 {
+    fn match_unit_coarse<M: MatchUnit>(&self, item: Item, match_item: Item, max: u32) -> u32 {
         debug_assert!(self.validate_match_items::<M>(item, match_item));
-        let len = M::match_us((item.u, match_item.u));
+        let len = M::match_us((item.val, match_item.val));
         if len == 4 {
             self.ring.match_inc_coarse::<4>((item.idx, match_item.idx), max as usize) as u32
         } else {
@@ -550,16 +562,15 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     pub fn init(&mut self) {
-        let zero = Idx::default();
-        self.table.reset_idx(zero - CLAMP_INTERVAL);
+        self.table.reset();
         self.commit = Commit::None;
         self.pending = Match::default();
-        self.head = zero;
-        self.literal_idx = zero;
-        self.idx = zero;
-        self.tail = zero;
-        self.mark = zero + T::RING_BLK_SIZE;
-        self.clamp = zero + CLAMP_INTERVAL;
+        self.head = Idx::Q0;
+        self.literal_idx = Idx::Q0;
+        self.idx = Idx::Q0;
+        self.tail = Idx::Q0;
+        self.mark = Idx::Q0 + T::RING_BLK_SIZE;
+        self.clamp = Idx::Q0 + Q1;
         debug_assert!(self.is_init());
     }
 
@@ -572,14 +583,21 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     fn clamp(&mut self) {
+        debug_assert!(((self.idx - self.clamp) as u32) < Q1);
+        debug_assert!(((self.clamp - self.idx) as u32) <= Q1);
         let delta = self.idx - self.clamp;
-        debug_assert!(delta < CLAMP_INTERVAL as i32 && delta >= -(CLAMP_INTERVAL as i32));
         if delta >= 0 {
             // Unlikely.
-            assert!(delta < CLAMP_INTERVAL as i32);
+            assert!(delta < Q1 as i32);
             self.table.clamp(self.idx);
-            self.clamp += CLAMP_INTERVAL;
+            self.clamp += Q1;
         }
+    }
+
+    #[inline(always)]
+    fn get_u32<M: MatchUnit>(&self, idx: Idx) -> u32 {
+        debug_assert!(idx + M::MATCH_UNIT <= self.tail);
+        self.ring.get_u32(idx)
     }
 
     fn is_init(&self) -> bool {
@@ -605,6 +623,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             && self.idx < self.head + T::RING_SIZE / 2 + T::RING_BLK_SIZE
             && self.tail == self.mark
             && self.mark == self.head + T::RING_SIZE
+            && self.head + T::RING_SIZE / 2 + T::RING_BLK_SIZE + Self::LONG_MATCH_LEN <= self.tail
     }
 
     fn is_long_post(&self) -> bool {
@@ -628,7 +647,7 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
 
     fn validate_clamp(&self) -> bool {
         let delta = self.idx - self.clamp;
-        -(CLAMP_INTERVAL as i32) <= delta && delta < CLAMP_INTERVAL as i32 / 2
+        -(Q1 as i32) <= delta && delta < Q1 as i32 / 2
     }
 
     fn validate_global(&self) -> bool {
@@ -649,10 +668,10 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
             && m.idx + m.match_len <= self.tail
     }
 
-    fn validate_match_items<M: MatchUnit>(&self, item: UIdx, match_item: UIdx) -> bool {
+    fn validate_match_items<M: MatchUnit>(&self, item: Item, match_item: Item) -> bool {
         self.validate_match_idxs::<M>(item.idx, match_item.idx)
-            && (item.u ^ self.ring.get_u32(item.idx)) & M::MATCH_MASK == 0
-            && (match_item.u ^ self.ring.get_u32(match_item.idx)) & M::MATCH_MASK == 0
+            && (item.val ^ self.get_u32::<M>(item.idx)) & M::MATCH_MASK == 0
+            && (match_item.val ^ self.get_u32::<M>(match_item.idx)) & M::MATCH_MASK == 0
     }
 
     fn validate_match_idxs<M: MatchUnit>(&self, idx: Idx, match_idx: Idx) -> bool {
@@ -698,10 +717,10 @@ mod tests {
         T: Copy + RingBlock,
     {
         assert!(T::RING_BLK_SIZE.is_power_of_two());
-        assert!(T::RING_SIZE <= CLAMP_INTERVAL / 4);
+        assert!(T::RING_SIZE <= Q1 / 4);
         assert!(0x100 < T::RING_BLK_SIZE as usize);
         assert!(T::RING_BLK_SIZE <= T::RING_SIZE / 4);
-        assert!(OVERMATCH_LEN < T::RING_LIMIT);
+        assert!(OVERMATCH_SLACK < T::RING_LIMIT);
         let zero = Idx::default();
         FrontendRing {
             table,
@@ -726,14 +745,13 @@ mod tests {
         let mut frontend = build((&mut ring_box).into(), &mut table);
         let mut dst = Vec::default();
         let mut backend = DummyBackend::default();
-        let base = Idx::default();
-        frontend.table.reset_idx(base - CLAMP_INTERVAL);
+        frontend.table.reset();
         frontend.pending = Match::default();
-        frontend.literal_idx = base;
-        frontend.idx = base;
-        frontend.head = base;
-        frontend.tail = base + 4;
-        frontend.mark = base + T::RING_BLK_SIZE;
+        frontend.literal_idx = Idx::Q0;
+        frontend.idx = Idx::Q0;
+        frontend.head = Idx::Q0;
+        frontend.tail = Idx::Q0 + 4;
+        frontend.mark = Idx::Q0 + T::RING_BLK_SIZE;
         frontend.match_short(&mut backend, &mut dst).unwrap();
         if frontend.pending.match_len != 0 {
             unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
@@ -756,17 +774,16 @@ mod tests {
         let mut frontend = build((&mut ring_box).into(), &mut table);
         let mut dst = Vec::default();
         let mut backend = DummyBackend::default();
-        let base = Idx::default();
         for n in 5..T::RING_SIZE {
             backend.init(&mut dst, None)?;
-            frontend.table.reset_idx(base - CLAMP_INTERVAL);
+            frontend.table.reset();
             frontend.pending = Match::default();
-            frontend.literal_idx = base;
-            frontend.idx = base;
-            frontend.head = base;
-            frontend.tail = base + n;
+            frontend.literal_idx = Idx::Q0;
+            frontend.idx = Idx::Q0;
+            frontend.head = Idx::Q0;
+            frontend.tail = Idx::Q0 + n;
             frontend.mark =
-                base + ((n + T::RING_BLK_SIZE - 1) / T::RING_BLK_SIZE) * T::RING_BLK_SIZE;
+                Idx::Q0 + ((n + T::RING_BLK_SIZE - 1) / T::RING_BLK_SIZE) * T::RING_BLK_SIZE;
             frontend.match_short(&mut backend, &mut dst)?;
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
@@ -789,15 +806,14 @@ mod tests {
         let mut backend = DummyBackend::default();
         for offset in 0..T::RING_BLK_SIZE - 1 {
             backend.init(&mut dst, None)?;
-            let base = Idx::default();
-            let idx = base + T::RING_SIZE / 2 + offset;
-            frontend.table.reset_idx(base - CLAMP_INTERVAL);
+            let idx = Idx::Q0 + T::RING_SIZE / 2 + offset;
+            frontend.table.reset_with_idx(idx);
             frontend.pending = Match::default();
             frontend.literal_idx = idx;
             frontend.idx = idx;
-            frontend.head = base;
-            frontend.tail = base + T::RING_SIZE;
-            frontend.mark = base + T::RING_SIZE;
+            frontend.head = Idx::Q0;
+            frontend.tail = Idx::Q0 + T::RING_SIZE;
+            frontend.mark = Idx::Q0 + T::RING_SIZE;
             frontend.match_long(&mut backend, &mut dst)?;
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };
@@ -824,7 +840,6 @@ mod tests {
         for i in 0..3 {
             frontend.ring[i] = i as u8 + 1;
         }
-        let base = Idx::default();
         for n in 10..T::RING_SIZE {
             backend.init(&mut dst, None)?;
             for i in 0..3 {
@@ -832,14 +847,14 @@ mod tests {
             }
             frontend.ring.head_copy_out();
             frontend.ring.tail_copy_out();
-            frontend.table.reset_idx(base - CLAMP_INTERVAL);
+            frontend.table.reset();
             frontend.pending = Match::default();
-            frontend.literal_idx = base;
-            frontend.idx = base;
-            frontend.head = base;
-            frontend.tail = base + n;
+            frontend.literal_idx = Idx::Q0;
+            frontend.idx = Idx::Q0;
+            frontend.head = Idx::Q0;
+            frontend.tail = Idx::Q0 + n;
             frontend.mark =
-                base + ((n + T::RING_BLK_SIZE - 1) / T::RING_BLK_SIZE) * T::RING_BLK_SIZE;
+                Idx::Q0 + ((n + T::RING_BLK_SIZE - 1) / T::RING_BLK_SIZE) * T::RING_BLK_SIZE;
             frontend.match_short(&mut backend, &mut dst)?;
             if frontend.pending.match_len != 0 {
                 unsafe { frontend.push_match(&mut backend, &mut dst, frontend.pending)? };

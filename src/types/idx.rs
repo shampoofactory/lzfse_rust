@@ -7,6 +7,11 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Neg, Rem, Sub, SubAssign};
 pub struct Idx(u32);
 
 impl Idx {
+    pub const Q0: Self = Idx(0x0000_0000);
+    pub const Q1: Self = Idx(0x4000_0000);
+    pub const Q2: Self = Idx(0x8000_0000);
+    pub const Q3: Self = Idx(0xC000_0000);
+
     #[inline(always)]
     pub fn new(u: u32) -> Self {
         Self(u)
@@ -49,6 +54,13 @@ impl From<u32> for Idx {
 impl From<u64> for Idx {
     #[inline(always)]
     fn from(v: u64) -> Self {
+        Self::new(v as u32)
+    }
+}
+
+impl From<usize> for Idx {
+    #[inline(always)]
+    fn from(v: usize) -> Self {
         Self::new(v as u32)
     }
 }

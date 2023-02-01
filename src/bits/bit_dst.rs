@@ -4,7 +4,7 @@ use std::io;
 use std::mem;
 use std::ptr;
 
-/// BitWriter.
+/// BitWriter core output.
 ///
 /// Memory must be allocated in advance via `Allocate`.
 pub trait BitDst: Allocate + Pos {

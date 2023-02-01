@@ -20,8 +20,6 @@ pub struct LzfseEncoder {
 impl LzfseEncoder {
     /// Encode `src` into `dst` returning the number of bytes written into `dst`.
     ///
-    /// Due to internal mechanics `src` is cannot exceed `i32::MAX` bytes in length.
-    ///
     /// # Errors
     ///
     /// * [ErrorKind::Other](std::io::ErrorKind) in case of `src` or `dst` buffer overflow.
@@ -50,7 +48,7 @@ impl LzfseEncoder {
     /// ```
     pub fn encode_bytes(&mut self, src: &[u8], dst: &mut Vec<u8>) -> io::Result<u64> {
         self.dst_mark = dst.len() as u64;
-        FrontendBytes::new(&mut self.table, src)?.execute(&mut self.backend, dst)?;
+        FrontendBytes::new(&mut self.table, src).execute(&mut self.backend, dst)?;
         Ok(dst.len() as u64 - self.dst_mark)
     }
 }

@@ -120,10 +120,13 @@ impl<'a, O, T: RingBlock> BitDst for RingShortWriter<'a, O, T> {
 
 impl<'a, O, T> Truncate for RingShortWriter<'a, O, T> {
     #[inline(always)]
-    fn truncate(&mut self, idx: Idx) {
-        assert!(self.head <= idx);
-        assert!(idx <= self.idx);
-        self.idx = idx;
+    fn truncate(&mut self, idx: Idx) -> bool {
+        if self.head <= idx && idx <= self.idx {
+            self.idx = idx;
+            true
+        } else {
+            false
+        }
     }
 }
 

@@ -7,8 +7,6 @@ pub trait PatchInto: Pos {
     /// Bounds violations panic.
     /// Patching to greater than `i32::MAX` relative to `self.pos()` is undefined.
     ///
-
-    ///
     /// * `S::SHORT_LIMIT <= Self::SHORT_LIMIT`
     #[must_use]
     fn patch_into(&mut self, pos: Idx, len: usize) -> &mut [u8];

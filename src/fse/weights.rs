@@ -129,7 +129,9 @@ impl Weights {
         let pos = dst.pos();
         let wide_bytes = dst.short_block(V2_WEIGHT_PAYLOAD_BYTES_MAX)?;
         let n = self.store_v2(wide_bytes);
-        dst.truncate(pos + n);
+        if !dst.truncate(pos + n) {
+            panic!("weights::store_v2_short cannot truncate");
+        }
         Ok(n)
     }
 

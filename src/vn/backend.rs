@@ -14,11 +14,11 @@ use std::io;
 // Working slack: max op len + max literal len + EOS tag len
 const SLACK: u32 = 0x03 + 0x010F + 0x08;
 
-fn n_allocate(len: u32) -> usize {
+fn n_allocate(len: usize) -> usize {
     // Assuming a functional front end that pushes literals correctly:
     // * literals, at worst, cost 1 byte plus an additional 1 byte per 4 literals.
     // * match runs are always cost neutral.
-    VN_HEADER_SIZE as usize + (len as usize / 4) * 5 + 32 + SLACK as usize + WIDE
+    VN_HEADER_SIZE as usize + (len / 4) * 5 + 32 + SLACK as usize + WIDE
 }
 
 #[derive(Default)]
@@ -38,7 +38,8 @@ impl Backend for VnBackend {
     type Type = Vn;
 
     #[inline(always)]
-    fn init<O: ShortWriter>(&mut self, dst: &mut O, len: Option<u32>) -> io::Result<()> {
+    fn init<O: ShortWriter>(&mut self, dst: &mut O, len: Option<usize>) -> io::Result<()> {
+        // TODO MAX len
         if let Some(u) = len {
             self.mark = dst.pos();
             self.match_distance = 0;

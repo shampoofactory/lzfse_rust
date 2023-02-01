@@ -42,7 +42,7 @@ pub fn encode_lmds<B: Backend, T: LmdMax>(
     let len = lmd::n_raw_bytes(lmds);
     dst.clear();
     dst.reserve(len as usize);
-    backend.init(dst, Some(len))?;
+    backend.init(dst, Some(len as usize))?;
     for &Lmd(literal_len, match_len, match_distance) in lmds {
         let literal_len = literal_len.get() as usize;
         let match_len = match_len.get();

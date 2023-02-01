@@ -87,7 +87,7 @@ impl DummyBackend {
 impl Backend for DummyBackend {
     type Type = Dummy;
 
-    fn init<O: ShortWriter>(&mut self, _: &mut O, _: Option<u32>) -> io::Result<()> {
+    fn init<O: ShortWriter>(&mut self, _: &mut O, _: Option<usize>) -> io::Result<()> {
         self.literals.clear();
         self.lmds.clear();
         Ok(())
