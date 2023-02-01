@@ -80,16 +80,16 @@ impl<'a> FrontendBytes<'a> {
         debug_assert_eq!(self.literal_index, 0);
         let src_len = self.src.len();
         backend.init(dst, Some(src_len))?;
-        let mark = dst.pos();
+        // let mark = dst.pos();
         self.finalize(backend, dst)?;
-        if src_len < RAW_LIMIT as usize {
-            let dst_len = (dst.pos() - mark) as usize;
-            if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
-                // The compressed length is NOT shorter than raw block length AND we have a
-                // successful truncate, so we proceed to rework as a raw block.
-                self.flush_raw(dst)?;
-            }
-        }
+        // if src_len < RAW_LIMIT as usize {
+        //     let dst_len = (dst.pos() - mark) as usize;
+        //     if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
+        //         // The compressed length is NOT shorter than raw block length AND we have a
+        //         // successful truncate, so we proceed to rework as a raw block.
+        //         self.flush_raw(dst)?;
+        //     }
+        // }
         Ok(())
     }
 
