@@ -10,6 +10,7 @@ const DECODE_F: usize = 4;
 const ENCODE_F: usize = 1;
 
 /// Test buddy.
+#[derive(Default)]
 pub struct Buddy {
     decoder: LzfseRingDecoder,
     encoder: LzfseRingEncoder,
@@ -111,18 +112,6 @@ impl Buddy {
             assert!(self.data == self.dec);
         }
         Ok(())
-    }
-}
-
-impl Default for Buddy {
-    fn default() -> Self {
-        Self {
-            decoder: LzfseRingDecoder::default(),
-            encoder: LzfseRingEncoder::default(),
-            data: Vec::default(),
-            enc: Vec::default(),
-            dec: Vec::default(),
-        }
     }
 }
 

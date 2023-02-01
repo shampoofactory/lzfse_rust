@@ -28,9 +28,9 @@ pub fn dump_slice(buf: &[u8]) {
     for (i, b) in buf.iter().enumerate() {
         if i % 16 == 0 {
             println!();
-            print!("{:04X} - ", i);
+            print!("{i:04X} - ");
         }
-        print!("{:02X} ", b);
+        print!("{b:02X} ");
     }
     println!()
 }

@@ -63,12 +63,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
         match self {
-            Self::Io(e) => write!(f, "IO: {}", e),
-            Self::Fse(e) => write!(f, "FSE: {}", e),
-            Self::Vn(e) => write!(f, "VN: {}", e),
+            Self::Io(e) => write!(f, "IO: {e}"),
+            Self::Fse(e) => write!(f, "FSE: {e}"),
+            Self::Vn(e) => write!(f, "VN: {e}"),
             Self::BadBitStream => write!(f, "bad bitstream"),
             Self::BadDValue => write!(f, "bad D value"),
-            Self::BadBlock(u) => write!(f, "bad block: 0x{:08X}", u),
+            Self::BadBlock(u) => write!(f, "bad block: 0x{u:08X}"),
             Self::BadReaderState => write!(f, "bad reader state"),
             Self::BufferOverflow => write!(f, "buffer overflow"),
             Self::PayloadOverflow => write!(f, "bad payload overflow"),

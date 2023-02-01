@@ -32,7 +32,7 @@ fn main() {
         Ok(()) => 0,
         Err(lzfse_rust::Error::Io(err)) if err.kind() == io::ErrorKind::BrokenPipe => 0,
         Err(lzfse_rust::Error::Io(err)) => {
-            eprint!("Error: IO: {}", err);
+            eprint!("Error: IO: {err}");
             1
         }
         Err(lzfse_rust::Error::BufferOverflow) => {
@@ -40,7 +40,7 @@ fn main() {
             1
         }
         Err(err) => {
-            eprintln!("Error: Decode: {}", err);
+            eprintln!("Error: Decode: {err}");
             1
         }
     });
@@ -128,13 +128,13 @@ fn stats(
     if output == STDOUT {
         eprintln!();
     }
-    eprintln!("LZFSE {}", mode);
-    eprintln!("Input: {}", input);
-    eprintln!("Output: {}", output);
-    eprintln!("Input size: {} B", n_input_bytes);
-    eprintln!("Output size: {} B", n_output_bytes);
+    eprintln!("LZFSE {mode}");
+    eprintln!("Input: {input}");
+    eprintln!("Output: {output}");
+    eprintln!("Input size: {n_input_bytes} B");
+    eprintln!("Output size: {n_output_bytes} B");
     eprintln!("Compression ratio: {:.3}", n_raw_bytes as f64 / n_payload_bytes as f64);
-    eprintln!("Speed: {:.2} ns/B, {:.2} MB/s", ns_per_byte, mb_per_sec);
+    eprintln!("Speed: {ns_per_byte:.2} ns/B, {mb_per_sec:.2} MB/s");
 }
 
 fn arg_matches() -> ArgMatches<'static> {

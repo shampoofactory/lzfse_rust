@@ -43,11 +43,11 @@ impl fmt::Display for FseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
         match self {
             Self::BadLiteralBits => write!(f, "bad literal bits"),
-            Self::BadLiteralCount(u) => write!(f, "bad literal count: 0x{:08X}", u),
+            Self::BadLiteralCount(u) => write!(f, "bad literal count: 0x{u:08X}"),
             Self::BadLiteralPayload => write!(f, "bad literal payload"),
             Self::BadLiteralState => write!(f, "bad literal state"),
             Self::BadLmdBits => write!(f, "bad lmd bits"),
-            Self::BadLmdCount(u) => write!(f, "bad lmd count: 0x{:08X}", u),
+            Self::BadLmdCount(u) => write!(f, "bad lmd count: 0x{u:08X}"),
             Self::BadLmdPayload => write!(f, "bad lmd payload"),
             Self::BadLmdState => write!(f, "bad lmd state"),
             Self::BadPayloadCount => write!(f, "bad payload count"),
