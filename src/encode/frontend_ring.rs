@@ -583,8 +583,8 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
     }
 
     fn clamp(&mut self) {
-        debug_assert!(((self.idx - self.clamp) as u32) < Q1);
-        debug_assert!(((self.clamp - self.idx) as u32) <= Q1);
+        debug_assert!((self.idx - self.clamp) < Q1 as i32);
+        debug_assert!((self.clamp - self.idx) <= Q1 as i32);
         let delta = self.idx - self.clamp;
         if delta >= 0 {
             // Unlikely.
