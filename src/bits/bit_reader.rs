@@ -1,3 +1,4 @@
+use crate::types::Idx;
 use crate::Error;
 
 use super::bit_mask;
@@ -13,7 +14,7 @@ const MASK: [usize; 5] = [0x0000_0000, 0x0000_00FF, 0x0000_FFFF, 0x00FF_FFFF, 0x
 pub struct BitReader<T: BitSrc> {
     accum_data: usize,
     accum_bits: isize,
-    index: isize,
+    idx: Idx,
     inner: T,
 }
 
@@ -21,15 +22,13 @@ impl<T: BitSrc> BitReader<T> {
     #[inline(always)]
     pub fn new(inner: T, off: usize) -> crate::Result<Self> {
         assert!(off <= 7);
-        assert!(8 <= inner.len());
-        assert!(inner.len() <= isize::MAX as usize);
-        let index = inner.len() as isize - mem::size_of::<usize>() as isize;
-        let accum_data = unsafe { inner.read_bytes(index) };
+        let idx = inner.base() + inner.len() as u32 - mem::size_of::<usize>() as u32;
+        let accum_data = unsafe { inner.read_bytes(idx) };
         let accum_bits = mem::size_of::<usize>() as isize * 8 - off as isize;
         if off != 0 && accum_data >> accum_bits != 0 {
             Err(Error::BadBitStream)
         } else {
-            Ok(Self { accum_data, accum_bits, inner, index })
+            Ok(Self { accum_data, accum_bits, inner, idx })
         }
     }
 
@@ -46,8 +45,8 @@ impl<T: BitSrc> BitReader<T> {
         let n_bytes = (ACCUM_MAX - self.accum_bits) as usize / 8;
         let n_bits = n_bytes * 8;
         debug_assert!(n_bytes < mem::size_of::<usize>());
-        self.index -= n_bytes as isize;
-        self.accum_data = unsafe { self.inner.read_bytes(self.index) };
+        self.idx -= n_bytes as u32;
+        self.accum_data = unsafe { self.inner.read_bytes(self.idx) };
         self.accum_bits += n_bits as isize;
         debug_assert!(0 <= self.accum_bits);
         debug_assert!(self.accum_bits <= ACCUM_MAX);
@@ -68,7 +67,7 @@ impl<T: BitSrc> BitReader<T> {
     #[inline(always)]
     pub fn finalize(mut self) -> crate::Result<()> {
         self.flush();
-        if self.accum_bits + self.index * 8 < 64 {
+        if self.accum_bits + (self.idx - self.inner.base()) as isize * 8 < 64 {
             return Err(Error::PayloadUnderflow);
         }
         Ok(())
@@ -102,7 +101,7 @@ mod tests {
             let u = unsafe { rdr.pull(32 - v.leading_zeros() as usize) as u32 };
             assert_eq!(v, u);
         }
-        assert_eq!(rdr.index * 8 + rdr.accum_bits, 64);
+        assert_eq!((rdr.idx - rdr.inner.base()) as isize * 8 + rdr.accum_bits, 64);
         rdr.finalize()?;
         Ok(())
     }
@@ -119,7 +118,7 @@ mod tests {
             let u = unsafe { rdr.pull(0) };
             assert_eq!(0, u);
         }
-        assert_eq!(rdr.index * 8 + rdr.accum_bits, 64);
+        assert_eq!((rdr.idx - rdr.inner.base()) as isize * 8 + rdr.accum_bits, 64);
         rdr.finalize()?;
         Ok(())
     }
@@ -133,9 +132,9 @@ mod tests {
             for _ in 0..8 - off {
                 assert_eq!(unsafe { rdr.pull(1) }, 0);
             }
-            assert_eq!(rdr.index * 8 + rdr.accum_bits, 64);
+            assert_eq!((rdr.idx - rdr.inner.base()) as isize * 8 + rdr.accum_bits, 64);
             assert_eq!(unsafe { rdr.pull(1) }, 1);
-            assert_eq!(rdr.index * 8 + rdr.accum_bits, 63);
+            assert_eq!((rdr.idx - rdr.inner.base()) as isize * 8 + rdr.accum_bits, 63);
         }
         Ok(())
     }

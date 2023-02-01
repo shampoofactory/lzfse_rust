@@ -138,9 +138,16 @@ impl<'a, T: Copy + RingType> ShortBuffer for RingView<'a, T> {
 
 impl<'a, T: Copy + RingType> BitSrc for RingView<'a, T> {
     #[inline(always)]
-    unsafe fn read_bytes(&self, index: isize) -> usize {
+    unsafe fn read_bytes(&self, idx: Idx) -> usize {
         assert!(mem::size_of::<usize>() <= WIDE);
-        let index = index as usize % T::RING_SIZE as usize;
+        let index = usize::from(idx) % T::RING_SIZE as usize;
         self.ring_ptr.add(index).cast::<usize>().read_unaligned().to_le()
+    }
+
+    #[inline(always)]
+    fn base(&self) -> Idx {
+        assert!(8 <= self.len());
+        assert!(self.len() <= u32::MAX as usize);
+        self.head
     }
 }

@@ -1,4 +1,5 @@
 use crate::ops::Len;
+use crate::types::Idx;
 
 use std::mem;
 
@@ -14,17 +15,25 @@ use std::mem;
 pub trait BitSrc: Len {
     /// Reads data as little endian 'usize' from the specified index.
     ///
-    /// Negative index values are permitted although the results are undefined.
+    /// Negative idx values are permitted although the results are undefined.
     ///
     /// # Safety
     ///
-    /// `index + size_of::<usize>() <= self.len()`
-    unsafe fn read_bytes(&self, index: isize) -> usize;
+    /// `base` has been called
+    /// `idx + size_of::<usize>() <= self.len()`
+    unsafe fn read_bytes(&self, idx: Idx) -> usize;
+
+    /// Validate and return the base idx.
+    /// Panic if the following conditions are not true:
+    /// - `8 <= self.len())`
+    /// - `self.len() <= u32::MAX as usize)`
+    fn base(&self) -> Idx;
 }
 
 impl<'a> BitSrc for &'a [u8] {
     #[inline(always)]
-    unsafe fn read_bytes(&self, index: isize) -> usize {
+    unsafe fn read_bytes(&self, idx: Idx) -> usize {
+        let index = isize::from(idx);
         if index >= 0 {
             // Likely
             debug_assert!(index as usize + mem::size_of::<usize>() <= self.len());
@@ -33,6 +42,13 @@ impl<'a> BitSrc for &'a [u8] {
             // Unlikely
             0
         }
+    }
+
+    #[inline(always)]
+    fn base(&self) -> Idx {
+        assert!(8 <= self.len());
+        assert!(self.len() <= u32::MAX as usize);
+        Idx::default()
     }
 }
 
@@ -44,28 +60,28 @@ mod tests {
     #[test]
     fn read_bytes_9() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(9) }, 0x3938_3736_3534_3332);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(9)) }, 0x3938_3736_3534_3332);
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn read_bytes_8() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(8) }, 0x3837_3635_3433_3231);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(8)) }, 0x3837_3635_3433_3231);
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn read_bytes_0() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(0) }, 0x2A2A_2A2A_2A2A_2A2A);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(0)) }, 0x2A2A_2A2A_2A2A_2A2A);
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn read_bytes_neg() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(-1) }, 0x0000_0000_0000_0000);
+        assert_eq!(unsafe { src.read_bytes(Idx::default() - 1) }, 0x0000_0000_0000_0000);
     }
 
     #[cfg(target_pointer_width = "32")]
