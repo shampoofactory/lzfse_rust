@@ -40,7 +40,7 @@ impl From<Idx> for usize {
 impl From<Idx> for isize {
     #[inline(always)]
     fn from(v: Idx) -> Self {
-        v.0 as isize
+        (v.0 as i32) as isize
     }
 }
 
