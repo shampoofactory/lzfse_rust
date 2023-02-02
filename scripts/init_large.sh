@@ -8,6 +8,7 @@
 get_zip () {
     f="${1##*/}"
     g="$2${f/.zip/.lzfse}"
+    mkdir -p data/large
     wget -qO- $1 | gunzip | lzfse -encode >> $g
     echo "$1 => $g"
 }
