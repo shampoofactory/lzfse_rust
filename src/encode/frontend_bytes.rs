@@ -311,6 +311,7 @@ impl<'a> FrontendBytes<'a> {
         index
     }
 
+    #[cfg(target_pointer_width = "64")]
     fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
@@ -340,7 +341,7 @@ impl<'a> FrontendBytes<'a> {
     }
 
     #[cfg(target_pointer_width = "32")]
-    fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O, delta: u32) -> io::Result<()>
+    fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
