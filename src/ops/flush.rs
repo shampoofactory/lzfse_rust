@@ -1,6 +1,9 @@
 use super::flush_limit::FlushLimit;
 
 pub trait Flush: FlushLimit {
+    /// Flush and empty the internal buffer to the internal destination.
+    /// Implementations may partially flush the internal buffer unless `hard` is specified, in which
+    /// case the entire buffer must be emptied.
     fn flush(&mut self, hard: bool) -> crate::Result<()>;
 }
 
