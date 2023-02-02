@@ -88,27 +88,27 @@ mod tests {
     #[test]
     fn read_bytes_9() {
         let src = b"********12345".as_ref();
-        assert_eq!(unsafe { src.read_bytes(9) }, 0x3534_3332);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(9)) }, 0x3534_3332);
     }
 
     #[cfg(target_pointer_width = "32")]
     #[test]
     fn read_bytes_8() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(8) }, 0x3433_3231);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(8)) }, 0x3433_3231);
     }
 
     #[cfg(target_pointer_width = "32")]
     #[test]
     fn read_bytes_0() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(0) }, 0x2A2A_2A2A);
+        assert_eq!(unsafe { src.read_bytes(Idx::new(0)) }, 0x2A2A_2A2A);
     }
 
     #[cfg(target_pointer_width = "32")]
     #[test]
     fn read_bytes_neg() {
         let src = b"********123456789".as_ref();
-        assert_eq!(unsafe { src.read_bytes(-1) }, 0x0000_0000);
+        assert_eq!(unsafe { src.read_bytes(Idx::default() - 1) }, 0x0000_0000);
     }
 }
