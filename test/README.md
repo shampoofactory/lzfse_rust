@@ -14,7 +14,7 @@ Full test:
 $ cargo test --manifest-path test/Cargo.toml -- --ignored
 ```
 
-Extended test:
+Extended test (will only run after setup as described below):
 ```
 $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test/Cargo.toml --features "large_data huge_data lzfse_ref" -- --ignored
 ```
@@ -60,9 +60,6 @@ We can then pass the `large_data` feature flag to enable large data tests.
 ```
 $ cargo test large --manifest-path test/Cargo.toml --features large_data
 ```
-```
-$ cargo test --manifest-path test/Cargo.toml --features large_data
-```
 
 
 ## Lzfse reference
@@ -81,12 +78,14 @@ $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test
 Test huge virtual synthetic data files using concurrent `lzfse_rust` process invocations.
 Although we are testing 64GB+ data files the actual memory requirements should not exceed 2MB.
 
+First build `lzfoo`:
 ```
-$ cargo test huge --manifest-path test/Cargo.toml --features huge_data
+$ cargo build --manifest-path lzfoo/Cargo.toml 
 ```
 
+And then:
 ```
-$ cargo test --manifest-path test/Cargo.toml --features huge_data
+$ cargo test huge --manifest-path test/Cargo.toml --features huge_data
 ```
 
 
