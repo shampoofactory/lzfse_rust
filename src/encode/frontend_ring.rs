@@ -316,20 +316,18 @@ impl<'a, T: Copy + RingBlock> FrontendRing<'a, T> {
         B: Backend,
         O: ShortWriter,
     {
-        // let mark = dst.pos();
         let src_len = (self.tail - self.idx) as usize;
+        let mark = dst.pos();
         backend.init(dst, Some(src_len))?;
         self.finalize(backend, dst)?;
-        // TODO
-        // if src_len < RAW_LIMIT as usize {
-        //     let dst_len = (dst.pos() - mark) as usize;
-        //     // TODO test me
-        //     if src_len + RAW_HEADER_SIZE as usize <= dst_len && dst.truncate(mark) {
-        //         // The compressed length is NOT shorter than raw block length AND we have a
-        //         // successful truncate, so we proceed to rework as a raw block.
-        //         self.flush_raw(dst)?;
-        //     }
-        // }
+        if self.commit == Commit::Vn && src_len < RAW_LIMIT as usize {
+            let dst_len = (dst.pos() - mark) as usize;
+            if src_len + RAW_HEADER_SIZE as usize <= dst_len && dst.truncate(mark) {
+                // The compressed length is NOT shorter than raw block length AND we have a
+                // successful truncate, so we proceed to rework as a raw block.
+                self.flush_raw(dst)?;
+            }
+        }
         Ok(())
     }
 

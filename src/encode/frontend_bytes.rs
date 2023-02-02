@@ -64,32 +64,36 @@ impl<'a> FrontendBytes<'a> {
         debug_assert_eq!(self.literal_index, 0);
         let len = self.src.len();
         if len > VN_CUTOFF as usize {
-            self.flush_backend(backend, dst)
+            self.flush_backend::<_, _, false>(backend, dst)
         } else if len > RAW_CUTOFF as usize {
-            self.flush_backend(&mut VnBackend::default(), dst)
+            self.flush_backend::<_, _, true>(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
         }
     }
 
-    fn flush_backend<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
+    fn flush_backend<B, O, const RAW: bool>(
+        &mut self,
+        backend: &mut B,
+        dst: &mut O,
+    ) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
     {
         debug_assert_eq!(self.literal_index, 0);
         let src_len = self.src.len();
+        let mark = dst.pos();
         backend.init(dst, Some(src_len))?;
-        // let mark = dst.pos();
         self.finalize(backend, dst)?;
-        // if src_len < RAW_LIMIT as usize {
-        //     let dst_len = (dst.pos() - mark) as usize;
-        //     if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
-        //         // The compressed length is NOT shorter than raw block length AND we have a
-        //         // successful truncate, so we proceed to rework as a raw block.
-        //         self.flush_raw(dst)?;
-        //     }
-        // }
+        if RAW && src_len < RAW_LIMIT as usize {
+            let dst_len = (dst.pos() - mark) as usize;
+            if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
+                // The compressed length is NOT shorter than raw block length AND we have a
+                // successful truncate, so we proceed to rework as a raw block.
+                self.flush_raw(dst)?;
+            }
+        }
         Ok(())
     }
 
