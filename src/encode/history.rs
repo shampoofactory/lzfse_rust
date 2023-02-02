@@ -177,7 +177,7 @@ impl Ward {
     }
 
     fn push(&mut self, item: Item) -> bool {
-        if self.idx != item.idx && self.clamp != item.idx {
+        if self.idx != item.idx || self.clamp == item.idx {
             return false;
         }
         if let Some(val) = self.opt_val {
@@ -231,6 +231,13 @@ mod tests {
     use crate::encode::dummy::Dummy;
 
     use super::*;
+
+    #[test]
+    #[should_panic]
+    fn default_warden() {
+        let mut table = HistoryTable::default();
+        table.push::<Dummy>(Item::new(0, Idx::Q0));
+    }
 
     #[test]
     #[ignore = "expensive"]
