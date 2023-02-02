@@ -51,6 +51,7 @@ Before enabling we need to download, hash and compress the large data file set i
 Then from the project root:
 ```
 $ ./scripts/init_large.sh
+$ ./scripts/hash.sh
 
 ```
 
