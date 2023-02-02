@@ -22,6 +22,28 @@ $ RUSTFLAGS="-L /usr/local/lib/x86_64-linux-gnu" cargo test --manifest-path test
 The quick test takes minutes. The full test takes hours. The extended test takes many hours.
 
 
+## 32 bit compilation
+
+First add the build target:
+```
+$ rustup default stable
+$ rustup target add i686-unknown-linux-musl
+$ cargo build --target i686-unknown-linux-musl
+```
+
+And then:
+
+Quick test:
+```
+$ cargo test --target i686-unknown-linux-musl --manifest-path test/Cargo.toml 
+```
+
+Full test:
+```
+$ cargo test --target i686-unknown-linux-musl --manifest-path test/Cargo.toml -- --ignored
+```
+
+
 ## Cross compilation
 
 Install and setup the [cross](https://github.com/rust-embedded/cross) crate.
