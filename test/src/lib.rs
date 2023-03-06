@@ -1,3 +1,5 @@
+#[cfg(all(test, feature = "big_mem"))]
+mod big_mem;
 #[cfg(test)]
 mod buddy;
 #[cfg(test)]
