@@ -6,7 +6,7 @@ const BM_VX1: u32 = 0x3178_7662;
 const BM_VX2: u32 = 0x3278_7662;
 const BM_VXN: u32 = 0x6E78_7662;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MagicBytes {
     Eos,
     Raw,
