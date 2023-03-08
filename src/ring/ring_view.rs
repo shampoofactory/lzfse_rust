@@ -151,3 +151,86 @@ impl<'a, T: Copy + RingType> BitSrc for RingView<'a, T> {
         self.head
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{self};
+
+    use crate::ring::{RingBlock, RingBox, RingReader};
+    use crate::types::ByteReader;
+
+    use super::*;
+
+    #[derive(Copy, Clone)]
+    pub struct T;
+
+    unsafe impl RingSize for T {
+        const RING_SIZE: u32 = 0x4000;
+    }
+
+    unsafe impl RingType for T {
+        const RING_LIMIT: u32 = 0x0100;
+    }
+
+    unsafe impl RingBlock for T {
+        const RING_BLK_SIZE: u32 = 0x1000;
+    }
+
+    fn read_bytes_check(bytes: &[u8], idx: Idx, expected: usize) -> io::Result<()> {
+        let mut core = RingBox::<T>::default();
+        let mut rdr = RingReader::new((&mut core).into(), bytes);
+        rdr.fill()?;
+        let view = rdr.view();
+        assert_eq!(view.base(), Idx::Q0);
+        assert_eq!(unsafe { view.read_bytes(idx) }, expected);
+        Ok(())
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn read_bytes_9() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::new(9), 0x3938_3736_3534_3332)
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn read_bytes_8() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::new(8), 0x3837_3635_3433_3231)
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn read_bytes_0() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::new(0), 0x2A2A_2A2A_2A2A_2A2A)
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn read_bytes_neg() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::default() - 1, 0x2A2A_2A2A_2A2A_2A00)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn read_bytes_9() -> io::Result<()> {
+        read_bytes_check(b"********12345", Idx::new(9), 0x3534_3332)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn read_bytes_8() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::new(8), 0x3433_3231)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn read_bytes_0() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::new(0), 0x2A2A_2A2A)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn read_bytes_neg() -> io::Result<()> {
+        read_bytes_check(b"********123456789", Idx::default() - 1, 0x2A2A_2A00)
+    }
+}
