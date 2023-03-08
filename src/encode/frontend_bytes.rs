@@ -61,18 +61,19 @@ impl<'a> FrontendBytes<'a> {
     where
         O: ShortWriter,
     {
-        debug_assert_eq!(self.literal_index, 0);
         let len = self.src.len();
         if len > VN_CUTOFF as usize {
+            // Fse
             self.flush_backend::<_, _, false>(backend, dst)
         } else if len > RAW_CUTOFF as usize {
+            // Vn
             self.flush_backend::<_, _, true>(&mut VnBackend::default(), dst)
         } else {
             self.flush_raw(dst)
         }
     }
 
-    fn flush_backend<B, O, const RAW: bool>(
+    fn flush_backend<B, O, const VN: bool>(
         &mut self,
         backend: &mut B,
         dst: &mut O,
@@ -81,14 +82,13 @@ impl<'a> FrontendBytes<'a> {
         B: Backend,
         O: ShortWriter,
     {
-        debug_assert_eq!(self.literal_index, 0);
         let src_len = self.src.len();
         let mark = dst.pos();
         backend.init(dst, Some(src_len))?;
         self.finalize(backend, dst)?;
-        if RAW && src_len < RAW_LIMIT as usize {
+        if VN && src_len < RAW_LIMIT as usize {
             let dst_len = (dst.pos() - mark) as usize;
-            if src_len <= dst_len + RAW_HEADER_SIZE as usize && dst.truncate(mark) {
+            if src_len + RAW_HEADER_SIZE as usize <= dst_len && dst.truncate(mark) {
                 // The compressed length is NOT shorter than raw block length AND we have a
                 // successful truncate, so we proceed to rework as a raw block.
                 self.flush_raw(dst)?;
@@ -150,12 +150,13 @@ impl<'a> FrontendBytes<'a> {
         B: Backend,
         O: ShortWriter,
     {
+        debug_assert!(self.is_match_state::<B::Type>());
         let mut index = self.index;
         let is_eof = self.src.len() - index as usize <= i32::MAX as usize;
         self.block = if is_eof { self.src } else { &self.src[..i32::MAX as usize] };
         self.index = self.block.len() as u32 - if is_eof { 0 } else { SLACK } - 3;
         assert!(index < self.index);
-        assert!(self.index as usize - 1 + mem::size_of::<u32>() <= self.block.len());
+        assert!(self.index as usize + mem::size_of::<u32>() <= self.block.len() + 1);
         loop {
             // Hot loop.
             let val = unsafe { get_u32(self.block, index) };
@@ -321,9 +322,10 @@ impl<'a> FrontendBytes<'a> {
         B: Backend,
         O: ShortWriter,
     {
-        assert!(self.literal_index as usize - 1 + mem::size_of::<u32>() <= self.src.len());
+        assert!(self.literal_index as usize + mem::size_of::<u32>() <= self.src.len() + 1);
         self.index = unsafe { self.sync_history::<B::Type>(self.index) };
         debug_assert!(self.literal_index <= self.index);
+        assert!(B::Type::MAX_MATCH_DISTANCE <= self.index);
         let delta = self.index - B::Type::MAX_MATCH_DISTANCE;
         if self.literal_index < delta {
             // We have literals that have have passed our buffer head without a match, we'll
@@ -360,6 +362,12 @@ impl<'a> FrontendBytes<'a> {
             && self.index == 0
     }
 
+    fn is_match_state<B: BackendType>(&self) -> bool {
+        self.literal_index <= self.index
+            && (self.index == 0 || self.index == B::MAX_MATCH_DISTANCE)
+            && self.src.len() >= 4 + self.index as usize
+    }
+
     fn validate_match<B: BackendType>(&self, m: Match) -> bool {
         m.match_len != 0
             && m.match_len >= B::MATCH_UNIT
@@ -388,10 +396,129 @@ unsafe fn get_u32(bytes: &[u8], index: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
+    use test_kit::Rng;
+
     use crate::lmd::Lmd;
+    use crate::ops::PeekData;
 
     use super::super::dummy::{Dummy, DummyBackend};
     use super::*;
+
+    use std::convert::TryFrom;
+
+    fn compress(src: &[u8]) -> io::Result<Vec<u8>> {
+        let mut table = HistoryTable::default();
+        let mut backend = FseBackend::default();
+        let mut frontend = FrontendBytes::new(&mut table, src);
+        let mut dst = Vec::with_capacity(32 + src.len() * 2);
+        frontend.execute(&mut backend, &mut dst)?;
+        Ok(dst)
+    }
+
+    fn check_output(src: &[u8], expected: &[u8]) -> io::Result<()> {
+        let dst = compress(src)?;
+        assert_eq!(dst, expected);
+        Ok(())
+    }
+
+    fn check_magic(src: &[u8], expected: MagicBytes) -> io::Result<()> {
+        assert_eq!(MagicBytes::try_from(compress(src)?.peek_u32())?, expected);
+        Ok(())
+    }
+
+    // Raw, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_0() -> io::Result<()> {
+        check_output(
+            &[0; 0],
+            &[0x62, 0x76, 0x78, 0x2D, 0x00, 0x00, 0x00, 0x00, 0x62, 0x76, 0x78, 0x24],
+        )
+    }
+
+    // Raw, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_1() -> io::Result<()> {
+        check_output(
+            &[0; 1],
+            &[0x62, 0x76, 0x78, 0x2D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x62, 0x76, 0x78, 0x24],
+        )
+    }
+
+    // Raw, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_20() -> io::Result<()> {
+        check_output(
+            &[0; 20],
+            &[
+                0x62, 0x76, 0x78, 0x2D, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x62, 0x76, 0x78, 0x24,
+            ],
+        )
+    }
+
+    // Raw, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_21() -> io::Result<()> {
+        check_output(
+            &[0; 21],
+            &[
+                0x62, 0x76, 0x78, 0x6E, 0x15, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x68, 0x01,
+                0x00, 0xFC, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x62, 0x76, 0x78, 0x24,
+            ],
+        )
+    }
+
+    // Vxn, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_4096() -> io::Result<()> {
+        check_output(
+            &[0; 4096],
+            &[
+                0x62, 0x76, 0x78, 0x6E, 0x00, 0x10, 0x00, 0x00, 0x2B, 0x00, 0x00, 0x00, 0x68, 0x01,
+                0x00, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0,
+                0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0, 0xFF, 0xF0,
+                0xFF, 0xF0, 0xFF, 0xF0, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x62,
+                0x76, 0x78, 0x24,
+            ],
+        )
+    }
+
+    // Vx2, assumes the defaults (RAW_CUTOFF: 0x0014, VN_CUTOFF: 0x1000)
+    #[test]
+    fn zero_4097() -> io::Result<()> {
+        check_output(
+            &[0; 4097],
+            &[
+                0x62, 0x76, 0x78, 0x32, 0x01, 0x10, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x02,
+                0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x10, 0x83, 0x00, 0x00, 0x00,
+                0x20, 0x00, 0x00, 0x08, 0x8F, 0xC0, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0xC0, 0xA3, 0xF0, 0x68, 0x3C, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xE8, 0x03, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22,
+                0xCB, 0xFF, 0x01, 0x62, 0x76, 0x78, 0x24,
+            ],
+        )
+    }
+
+    // Random non-compressible data (<= VN_CUTOFF) should fall back to a Raw block (more efficient).
+    #[test]
+    fn rand_vn_cutoff() -> io::Result<()> {
+        check_magic(Rng::default().gen_vec(VN_CUTOFF as usize).unwrap().as_ref(), MagicBytes::Raw)
+    }
+
+    // Random non-compressible data (> VN_CUTOFF) does not fall back to a Raw block.
+    #[test]
+    fn rand_vn_cutoff_add_1() -> io::Result<()> {
+        check_magic(
+            Rng::default().gen_vec(VN_CUTOFF as usize + 1).unwrap().as_ref(),
+            MagicBytes::Vx2,
+        )
+    }
 
     // Match short: zero bytes, length 4. Lower limit.
     #[test]
