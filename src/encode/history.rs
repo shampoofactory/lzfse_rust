@@ -17,8 +17,6 @@ pub struct HistoryTable(Box<[History]>, #[cfg(test)] Ward);
 impl HistoryTable {
     const SIZE: usize = 1 << HASH_BITS;
 
-    // TODO consider new with idx method
-
     /// Push a new history item.
     ///
     /// Items must be pushed in strict sequential order and must not wrap around.
