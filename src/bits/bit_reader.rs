@@ -138,4 +138,23 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn not_bad_bitstream() {
+        let src = [0x00u8; 32];
+        for off in 0..7 {
+            BitReader::new(src.as_slice(), off).unwrap();
+        }
+    }
+
+    #[test]
+    fn bad_bitstream() {
+        let src = [0xFFu8; 32];
+        for off in 1..7 {
+            match BitReader::new(src.as_slice(), off) {
+                Err(Error::BadBitStream) => {}
+                _ => panic!(),
+            }
+        }
+    }
 }
