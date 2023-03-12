@@ -291,7 +291,7 @@ mod tests {
 
     // Bitwise mutation. We are looking to break the decoder. In all cases the
     // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
-    // segfault/ panic/ trip debug assertions or break in a any other fashion.
+    // segfault/ panic/ trip debug assertions or break in any other fashion.
     #[test]
     #[ignore = "expensive"]
     fn mutate_1() -> io::Result<()> {
@@ -316,7 +316,7 @@ mod tests {
 
     // Byte mutation. We are looking to break the decoder. In all cases the
     // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
-    // segfault/ panic/ trip debug assertions or break in a any other fashion.
+    // segfault/ panic/ trip debug assertions or break in any other fashion.
     #[test]
     #[ignore = "expensive"]
     fn mutate_2() -> io::Result<()> {

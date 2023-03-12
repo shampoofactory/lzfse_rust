@@ -1,5 +1,5 @@
 // Max/ min double word mutation. We are looking to break the decoder. It should not hang/ segfault/
-// panic/ trip debug assertions or break in a any other fashion.
+// panic/ trip debug assertions or break in any other fashion.
 
 const VX1: &[u8] = include_bytes!("../../data/mutate/vx1.lzfse");
 const VX2: &[u8] = include_bytes!("../../data/mutate/vx2.lzfse");

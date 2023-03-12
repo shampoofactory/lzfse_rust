@@ -262,7 +262,7 @@ fn fuzz_lmd_n() -> crate::Result<()> {
 
 // Mutate `n_payload_bytes` +1. We are looking to break the decoder. In all cases the decoder should
 // reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
-// trip debug assertions or break in a any other fashion.
+// trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 fn edge_1() -> crate::Result<()> {
@@ -286,7 +286,7 @@ fn edge_1() -> crate::Result<()> {
 
 // Mutate `n_payload_bytes` -1. We are looking to break the decoder. In all cases the decoder should
 // reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
-// trip debug assertions or break in a any other fashion.
+// trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 fn edge_2() -> crate::Result<()> {
@@ -310,7 +310,7 @@ fn edge_2() -> crate::Result<()> {
 
 // Mutate `n_raw_bytes` +1. We are looking to break the decoder. In all cases the decoder should
 // reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
-// trip debug assertions or break in a any other fashion.
+// trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 fn edge_3() -> crate::Result<()> {
@@ -334,7 +334,7 @@ fn edge_3() -> crate::Result<()> {
 
 // Mutate `n_raw_bytes` -1. We are looking to break the decoder. In all cases the decoder should
 // reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
-// trip debug assertions or break in a any other fashion.
+// trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 fn edge_4() -> crate::Result<()> {
@@ -358,7 +358,7 @@ fn edge_4() -> crate::Result<()> {
 
 // Random payload generation with mutations. We are looking to break the decoder. In all cases the
 // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
-// segfault/ panic/ trip debug assertions or break in a any other fashion.
+// segfault/ panic/ trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 #[allow(clippy::unnecessary_cast)]
@@ -399,7 +399,7 @@ fn mutate_rng_1() -> crate::Result<()> {
 
 // Random payload generation with mutations. We are looking to break the decoder. In all cases the
 // decoder should reject invalid data via `Err(error)` and exit gracefully. It should not hang/
-// segfault/ panic/ trip debug assertions or break in a any other fashion.
+// segfault/ panic/ trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 #[allow(clippy::unnecessary_cast)]
@@ -439,7 +439,7 @@ fn mutate_rng_2() -> crate::Result<()> {
 
 // Random noise for payload. We are looking to break the decoder. In all cases the decoder should
 // reject invalid data via `Err(error)` and exit gracefully. It should not hang/ segfault/ panic/
-// trip debug assertions or break in a any other fashion.
+// trip debug assertions or break in any other fashion.
 #[test]
 #[ignore = "expensive"]
 fn fuzz_noise() -> crate::Result<()> {
