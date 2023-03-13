@@ -12,7 +12,7 @@ Simply configure your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lzfse_rust = "0.1"
+lzfse_rust = "0.2"
 ```
 
 
