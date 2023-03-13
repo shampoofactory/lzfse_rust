@@ -21,7 +21,7 @@ The memory buffered engine works directly with input and output buffers that we 
 It is exposed via [LzfseEncoder] and [LzfseDecoder] objects.
 We would consider this engine when operating on `&[u8]` and `Vec<u8>` objects.
 
-The ring buffered engine works by streaming data in and out of it's ring buffers.
+The ring buffered engine works by streaming data in and out of it's internal ring buffers.
 It is exposed via [LzfseRingEncoder] and [LzfseRingDecoder] objects.
 We would consider this engine when operating on IO streams, or when we want to expose a [Read](std::io::Read) or [Write](std::io::Write) interface.
 
