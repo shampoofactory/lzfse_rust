@@ -30,4 +30,5 @@ macro_rules! test_pattern {
 
 test_pattern!(big_2gb_sub_1, ops::encode, 0x7FFF_FFFF);
 test_pattern!(big_2gb, ops::encode, 0x8000_0000);
+#[cfg(target_pointer_width = "64")]
 test_pattern!(big_8gb, ops::encode, 0x2_0000_0000);
