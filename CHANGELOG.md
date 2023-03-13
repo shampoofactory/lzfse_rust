@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Bash scripts misc fixes.
 - Clippy warnings.
 - Docs clarifications, grammar and typo fixes.
-- LzfseEncoder erroneous RAW encoding selection: #1
+- LzfseEncoder erroneous RAW encoding selection: https://github.com/shampoofactory/lzfse_rust/issues/1
 
 
 ## [0.1.0] - 2021-04-22
