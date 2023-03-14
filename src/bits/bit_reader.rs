@@ -8,9 +8,6 @@ use std::mem;
 
 pub const ACCUM_MAX: isize = mem::size_of::<usize>() as isize * 8;
 
-#[cfg(target_pointer_width = "32")]
-const MASK: [usize; 5] = [0x0000_0000, 0x0000_00FF, 0x0000_FFFF, 0x00FF_FFFF, 0xFFFF_FFFF];
-
 pub struct BitReader<T: BitSrc> {
     accum_data: usize,
     accum_bits: isize,
