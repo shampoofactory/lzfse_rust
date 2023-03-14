@@ -19,6 +19,9 @@ use std::mem;
 // Fixed constant. Do NOT change.
 const SLACK: u32 = 0x1000_0000;
 
+// Fixed constant. Do NOT change.
+const BLOCK_GUIDE: u32 = 0x7FFF_FFFF;
+
 pub struct FrontendBytes<'a> {
     table: &'a mut HistoryTable,
     src: &'a [u8],
@@ -133,15 +136,7 @@ impl<'a> FrontendBytes<'a> {
         O: ShortWriter,
     {
         debug_assert!(self.is_init());
-        if self.src.len() < 4 {
-            return Ok(());
-        }
-        loop {
-            if self.match_block(backend, dst)? {
-                break;
-            }
-            self.reposition(backend, dst)?;
-        }
+        while self.match_block(backend, dst)? {}
         Ok(())
     }
 
@@ -150,12 +145,40 @@ impl<'a> FrontendBytes<'a> {
         B: Backend,
         O: ShortWriter,
     {
-        debug_assert!(self.is_match_state::<B::Type>());
+        Ok({
+            if self.match_any(backend, dst)? {
+                false
+            } else {
+                self.reposition(backend, dst)?;
+                true
+            }
+        })
+    }
+
+    #[allow(clippy::absurd_extreme_comparisons)]
+    #[allow(clippy::assertions_on_constants)]
+    fn match_any<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<bool>
+    where
+        B: Backend,
+        O: ShortWriter,
+    {
+        assert!(BLOCK_GUIDE <= i32::MAX as u32);
+        assert!(256 <= SLACK);
+        assert!(SLACK * 2 <= BLOCK_GUIDE);
+        assert!(self.src.len() >= 4);
+        debug_assert!(self.is_any::<B::Type>());
         let mut index = self.index;
-        let is_eof = self.src.len() - index as usize <= i32::MAX as usize;
-        self.block = if is_eof { self.src } else { &self.src[..i32::MAX as usize] };
-        self.index = self.block.len() as u32 - if is_eof { 0 } else { SLACK } - 3;
+        let is_short = if self.src.len() <= BLOCK_GUIDE as usize + 3 {
+            self.block = &self.src[..self.src.len()];
+            self.index = self.block.len() as u32 - 3;
+            true
+        } else {
+            self.block = &self.src[..BLOCK_GUIDE as usize];
+            self.index = self.block.len() as u32 - SLACK - 3;
+            false
+        };
         assert!(index < self.index);
+        assert!(self.index <= BLOCK_GUIDE);
         assert!(self.index as usize + mem::size_of::<u32>() <= self.block.len() + 1);
         loop {
             // Hot loop.
@@ -183,8 +206,8 @@ impl<'a> FrontendBytes<'a> {
                 }
             }
         }
-        debug_assert!(self.literal_index as usize <= self.block.len());
-        Ok(is_eof)
+        debug_assert!(self.is_any_post::<B::Type>());
+        Ok(is_short)
     }
 
     #[inline(always)]
@@ -250,7 +273,10 @@ impl<'a> FrontendBytes<'a> {
         backend: &mut B,
         dst: &mut O,
     ) -> io::Result<()> {
+        debug_assert!(self.block.len() <= BLOCK_GUIDE as usize + 3);
         if self.pending.match_len != 0 {
+            assert!(self.literal_index as usize <= usize::from(self.pending.idx));
+            assert!(usize::from(self.pending.idx) <= self.block.len());
             unsafe { self.push_match(backend, dst, self.pending)? };
             self.pending.match_len = 0;
         }
@@ -281,7 +307,8 @@ impl<'a> FrontendBytes<'a> {
         backend: &mut B,
         dst: &mut O,
     ) -> io::Result<()> {
-        debug_assert!(self.block.len() <= i32::MAX as usize);
+        debug_assert!(self.block.len() <= BLOCK_GUIDE as usize + 3);
+        assert!(self.literal_index as usize <= self.block.len());
         let len = self.block.len() as u32 - self.literal_index;
         if len != 0 {
             unsafe { self.push_literals(backend, dst, len)? };
@@ -316,15 +343,17 @@ impl<'a> FrontendBytes<'a> {
         index
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[allow(clippy::absurd_extreme_comparisons)]
+    #[allow(clippy::assertions_on_constants)]
     fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
     where
         B: Backend,
         O: ShortWriter,
     {
+        assert!(BLOCK_GUIDE <= i32::MAX as u32);
+        assert!(self.literal_index <= BLOCK_GUIDE);
         assert!(self.literal_index as usize + mem::size_of::<u32>() <= self.src.len() + 1);
         self.index = unsafe { self.sync_history::<B::Type>(self.index) };
-        debug_assert!(self.literal_index <= self.index);
         assert!(B::Type::MAX_MATCH_DISTANCE <= self.index);
         let delta = self.index - B::Type::MAX_MATCH_DISTANCE;
         if self.literal_index < delta {
@@ -338,21 +367,11 @@ impl<'a> FrontendBytes<'a> {
             unsafe { self.push_literals(backend, dst, delta - self.literal_index)? };
         }
         self.table.clamp_rebias(self.index.into(), delta);
+        self.pending.rebias(delta);
         self.src = &self.src[delta as usize..];
-        self.pending.idx -= delta;
-        self.pending.match_idx -= delta;
         self.literal_index -= delta;
         self.index -= delta;
         Ok(())
-    }
-
-    #[cfg(target_pointer_width = "32")]
-    fn reposition<B, O>(&mut self, backend: &mut B, dst: &mut O) -> io::Result<()>
-    where
-        B: Backend,
-        O: ShortWriter,
-    {
-        unreachable!();
     }
 
     fn is_init(&self) -> bool {
@@ -362,10 +381,16 @@ impl<'a> FrontendBytes<'a> {
             && self.index == 0
     }
 
-    fn is_match_state<B: BackendType>(&self) -> bool {
+    fn is_any<B: BackendType>(&self) -> bool {
         self.literal_index <= self.index
             && (self.index == 0 || self.index == B::MAX_MATCH_DISTANCE)
             && self.src.len() >= 4 + self.index as usize
+    }
+
+    fn is_any_post<B: BackendType>(&self) -> bool {
+        self.literal_index as usize <= self.block.len()
+            && self.index as usize <= self.block.len() - 3
+            && self.block.len() <= self.src.len()
     }
 
     fn validate_match<B: BackendType>(&self, m: Match) -> bool {
