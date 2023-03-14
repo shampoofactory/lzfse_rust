@@ -31,4 +31,9 @@ impl Match {
         }
         select
     }
+
+    pub fn rebias(&mut self, delta: u32) {
+        self.match_idx -= delta;
+        self.idx -= delta;
+    }
 }
