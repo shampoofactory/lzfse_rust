@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 name = "lzfse_rust" 
 readme = "README.md" 
 repository = "https://github.com/shampoofactory/lzfse_rust" 
-version = "0.1.0" # remember to update bench, lzfoo, lzfse_sys, test, test_kit and READMEs
+version = "0.2.0" # remember to update bench, lzfoo, lzfse_sys, test, test_kit and READMEs
 
 [workspace]
 exclude = ["lzfse_sys"]

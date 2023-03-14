@@ -6,7 +6,7 @@ Powered by [lzfse_rust](https://github.com/shampoofactory/lzfse_rust).
 
 ```
 $ lzfoo
-lzfoo 0.1.0
+lzfoo 0.2.0
 Vin Singh <github.com/shampoofactory>
 LZFSE compressor/ decompressor
 

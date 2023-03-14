@@ -1,25 +1,25 @@
 [package]
-name = "lzfoo"
-version = "0.1.0"
 authors = ["Vin Singh Ghataore <theshampoofactory@gmail.com>"]
 description = """
 A pure Rust LZFSE command line tool.
 """
-license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/lzfoo"
-homepage = "https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo"
-repository = "https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo"
-readme = "README.md"
-keywords = ["lzfse", "compress", "compression", "decompress", "decompression", "cli"]
 edition = "2018"
+homepage = "https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo"
+keywords = ["lzfse", "compress", "compression", "decompress", "decompression", "cli"]
+license = "MIT OR Apache-2.0"
+name = "lzfoo"
+readme = "README.md"
+repository = "https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo"
+version = "0.2.0"
 
 [[bin]]
 name = "lzfoo"
 path = "main.rs"
 
 [dependencies]
-lzfse_rust = { path = "..", version = "0.1.0" }
+lzfse_rust = {path = "..", version = "0.2.0"}
 
 [dependencies.clap]
-version = "2.33.0"
 default-features = false
+version = "2.33.0"

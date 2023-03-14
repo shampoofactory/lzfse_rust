@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/lzfse_rust/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/lzfse_rust/0.2.0")]
 #![warn(missing_docs)]
 /*!
 This crate provides an enhanced implementation of the [LZFSE](https://github.com/lzfse/lzfse)
@@ -10,7 +10,7 @@ Simply configure your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lzfse_rust = "0.1"
+lzfse_rust = "0.2"
 ```
 
 ### Overview.
