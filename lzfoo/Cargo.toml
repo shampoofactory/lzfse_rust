@@ -6,7 +6,7 @@ A pure Rust LZFSE command line tool.
 documentation = "https://docs.rs/lzfoo"
 edition = "2018"
 homepage = "https://github.com/shampoofactory/lzfse_rust/tree/main/lzfoo"
-keywords = ["lzfse", "compress", "compression", "decompress", "decompression", "cli"]
+keywords = ["lzfse", "compress", "compression", "decompress", "decompression"]
 license = "MIT OR Apache-2.0"
 name = "lzfoo"
 readme = "README.md"
