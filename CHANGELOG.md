@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 
-## [0.2.0] - 2022-03-13
+## [0.2.0] - 2022-03-14
    
 ### Added
 - Additional code tests.
@@ -32,6 +32,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - LzfseEncoder erroneous RAW encoding selection: https://github.com/shampoofactory/lzfse_rust/issues/1
 
 
-## [0.1.0] - 2021-04-22
+## [0.1.0] - 2021-04-22 [Yanked]
  
 Initial release.
