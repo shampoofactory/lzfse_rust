@@ -16,16 +16,16 @@ pub const OVERMATCH_LEN: usize = 5 * mem::size_of::<usize>();
 
 pub struct Ring<'a, T>(*mut u8, PhantomData<T>, PhantomData<&'a mut ()>);
 
- impl<'a, T> Ring<'a, T> {
-+    /// Returns a raw pointer to the entire ring buffer.
-+    ///
-+    /// Using the full pointer ensures that pointer provenance is maintained over
-+    /// the entire buffer range, avoiding Miri errors when wide-copy operations
-+    /// read beyond the nominal data range.
-     pub fn full_ptr(&self) -> *mut u8 {
-         self.0
-     }
- }
+impl<'a, T> Ring<'a, T> {
+    /// Returns a raw pointer to the entire ring buffer.
+    ///
+    /// Using the full pointer ensures that pointer provenance is maintained over
+    /// the entire buffer range, avoiding Miri errors when wide-copy operations
+    /// read beyond the nominal data range.
+    pub fn full_ptr(&self) -> *mut u8 {
+        self.0
+    }
+}
 
 // Implementation notes:
 //
