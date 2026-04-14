@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 
+## [0.2.1] - 2026-04-14
+
+### Changed
+- ShortBytes reworked with pointers.
+
+### Fixed
+- BitDist undefined behavior (Miri).
+- Ring/ RingView formally expose full buffer bounds (Miri).
+
+
 ## [0.2.0] - 2022-03-14
    
 ### Added

@@ -10,7 +10,7 @@ name = "lzfse-rust-bench"
 publish = false
 readme = "README.md"
 repository = "https://github.com/shampoofactory/lzfse_rust"
-version = "0.2.0"
+version = "0.2.1"
 
 [lib]
 bench = false
